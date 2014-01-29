@@ -1,0 +1,32 @@
+{
+  "name": "cypher-stream",
+  "version": "0.0.0",
+  "description": "Streams cypher query results in a clean format",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brian-gates/cypher-stream.git"
+  },
+  "keywords": [
+    "cypher",
+    "stream",
+    "neo4j",
+    "node"
+  ],
+  "author": "Brian Gates <brian.g.gates@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/brian-gates/cypher-stream/issues"
+  },
+  "dependencies": {
+    "neo4j-stream-deserializer": "git://github.com/brian-gates/neo4j-stream-deserializer.git",
+    "request": "~2.33.0"
+  },
+  "devDependencies": {
+    "mocha": "~1.17.1",
+    "should": "~3.1.2"
+  }
+}
