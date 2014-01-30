@@ -2,6 +2,11 @@
 
 Streams cypher query results as easy to manage objects.
 
+## Installation
+```
+npm install cypher-stream
+```
+
 ## Basic usage
 
 ``` js
