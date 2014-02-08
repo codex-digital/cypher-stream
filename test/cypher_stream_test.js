@@ -1,7 +1,5 @@
 var should              = require('should');
 var cypher              = require('../index')('http://localhost:7474');
-var http                = require('http');
-var fs                  = require('fs');
 
 describe('Cypher stream', function () {
   before(function (done){
@@ -15,9 +13,9 @@ describe('Cypher stream', function () {
       .resume();
   });
 
-  it('it works', function (done) {
+  it('works', function (done) {
     var results = 0;
-    cypher('match (n:Test {test: true}) return n limit 10')
+    cypher('match (n:Test) return n limit 10')
       .on('data', function (result){
         results++;
         result.n.test.should.be.ok;
@@ -29,17 +27,18 @@ describe('Cypher stream', function () {
     ;
   });
 
-  it('it handles errors', function (done) {
-    var error = false;
+  it('handles errors', function (done) {
+    var errored = false;
     cypher('invalid query')
       .on('data', function (data){
         console.log(data);
       })
-      .on('error', function (result){
-        error = true;
+      .on('error', function (error) {
+        errored = true;
+        error.statusCode.should.eql(400);
       })
       .on('end', function() {
-        error.should.be.ok;
+        errored.should.be.true;
         done();
       })
     ;
