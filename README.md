@@ -2,10 +2,6 @@
 
 Neo4j cypher queries as node object streams.
 
-The majority of magic happens in the deserializer, which can be found here:
-
-https://github.com/brian-gates/neo4j-stream-deserializer
-
 ## Installation
 ```
 npm install cypher-stream
