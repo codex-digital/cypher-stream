@@ -22,8 +22,7 @@
     "url": "https://github.com/brian-gates/cypher-stream/issues"
   },
   "dependencies": {
-    "neo4j-stream-deserializer": "git://github.com/brian-gates/neo4j-stream-deserializer.git",
-    "request": "~2.33.0"
+    "oboe": "~1.12.2"
   },
   "devDependencies": {
     "mocha": "~1.17.1",
