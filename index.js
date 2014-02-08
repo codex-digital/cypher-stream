@@ -1,4 +1,3 @@
-var request   = require('request');
 var oboe      = require('oboe');
 var Readable  = require('stream').Readable;
 var util      = require('util');
