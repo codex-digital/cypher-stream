@@ -30,7 +30,9 @@ function CypherStream (url, query, params) {
     stream.push(null);
   })
   .fail(function(error) {
-    stream.emit('error', error);
+    var err = new Error('Query failure: '+error.jsonBody.message);
+    err.reference = error;
+    stream.emit('error', err);
     stream.push(null);
   });
 
