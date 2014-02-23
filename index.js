@@ -22,7 +22,12 @@ function CypherStream (url, query, params) {
   .node('!data[*]', function (result, path, ancestors) {
     var data = {};
     columns.forEach(function (column, i) {
-      data[column] = result[i].data
+      	if(result[i].hasOwnProperty('data')) {
+	    	data[column] = result[i].data
+	    	if(result[i].hasOwnProperty('self')) data[column]._id = parseInt(result[i].self.replace(url+'/db/data/node/', ''))
+    	} else {
+	    	data[column] = result[i]
+    	}
     });
     stream.push(data)
   })
