@@ -22,10 +22,10 @@
     "url": "https://github.com/brian-gates/cypher-stream/issues"
   },
   "dependencies": {
-    "oboe": "~1.12.2"
+    "oboe": "~1.14.0"
   },
   "devDependencies": {
     "mocha": "~1.17.1",
-    "should": "~3.1.2"
+    "should": "~3.1.3"
   }
 }
