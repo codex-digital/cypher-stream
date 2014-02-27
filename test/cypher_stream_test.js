@@ -3,6 +3,7 @@ var cypher              = require('../index')('http://localhost:7474');
 
 describe('Cypher stream', function () {
   before(function (done){
+    this.timeout(3000); // sometimes travis ci takes too long here
     cypher('FOREACH (x IN range(1,10) | CREATE(:Test {test: true}))')
       .on('end', done)
       .on('error', function (error){
