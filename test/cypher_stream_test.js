@@ -5,6 +5,9 @@ describe('Cypher stream', function () {
   before(function (done){
     cypher('FOREACH (x IN range(1,10) | CREATE(:Test {test: true}))')
       .on('end', done)
+      .on('error', function (error){
+        console.error(error);
+      })
       .resume();
   });
   after(function (done){
@@ -30,17 +33,19 @@ describe('Cypher stream', function () {
   it('handles errors', function (done) {
     var errored = false;
     cypher('invalid query')
-      .on('data', function (data){
-        console.log(data);
-      })
       .on('error', function (error) {
         errored = true;
-        error.statusCode.should.eql(400);
+        console.error(error);
+        String(error).should.equal('Error: Query failure: Invalid input \'i\': expected SingleStatement (line 1, column 1)\n"invalid query"\n ^');
+        error.neo4j.exception.should.equal('SyntaxException');
+        error.neo4j.stacktrace.should.be.an.array;
+        error.neo4j.statusCode.should.equal(400);
       })
       .on('end', function() {
         errored.should.be.true;
         done();
       })
+      .resume() // need to manually start it since we have no on('data')
     ;
   });
 

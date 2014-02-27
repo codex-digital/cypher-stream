@@ -31,7 +31,8 @@ function CypherStream (url, query, params) {
   })
   .fail(function(error) {
     var err = new Error('Query failure: '+error.jsonBody.message);
-    err.reference = error;
+    err.neo4j = error.jsonBody;
+    err.neo4j.statusCode = error.statusCode;
     stream.emit('error', err);
     stream.push(null);
   });
