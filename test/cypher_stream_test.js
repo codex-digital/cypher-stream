@@ -35,7 +35,6 @@ describe('Cypher stream', function () {
     cypher('invalid query')
       .on('error', function (error) {
         errored = true;
-        console.error(error);
         String(error).should.equal('Error: Query failure: Invalid input \'i\': expected SingleStatement (line 1, column 1)\n"invalid query"\n ^');
         error.neo4j.exception.should.equal('SyntaxException');
         error.neo4j.stacktrace.should.be.an.array;
