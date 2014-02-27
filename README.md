@@ -25,17 +25,23 @@ cypher('match (user:User) return user')
 ## Handling errors
 ``` js
 var cypher = require('cypher-stream')('http://localhost:7474');
-cypher('invalid query')
-  .on('data', function (data){
-    console.log(data); // never called
-  })
-  .on('error', function (error) {
-    console.log(error.statusCode); // 400
-  })
-  .on('end', function() {
-    console.log('all done');
-  })
-;
+var should = require('should');
+it('handles errors', function (done) {
+  var errored = false;
+  cypher('invalid query')
+    .on('error', function (error) {
+      errored = true;
+      String(error).should.equal('Error: Query failure: Invalid input \'i\': expected SingleStatement (line 1, column 1)\n"invalid query"\n ^');
+      error.neo4j.exception.should.equal('SyntaxException');
+      error.neo4j.stacktrace.should.be.an.array;
+      error.neo4j.statusCode.should.equal(400);
+    })
+    .on('end', function() {
+      errored.should.be.true;
+      done();
+    })
+    .resume() // need to manually start it since we have no on('data')
+  ;
 });
 
 ```
