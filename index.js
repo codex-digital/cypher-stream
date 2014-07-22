@@ -14,35 +14,51 @@ function CypherStream (url, query, params) {
     headers : { "X-Stream": true, "Accept": "application/json" },
     body    : { query: query, params: params  }
   })
-  .node('!columns', function (c) {
+  .node('!columns', function CypherStreamNodeColumns(c) {
     stream.emit('columns', c);
     columns = c;
     this.forget();
   })
-  .node('!data[*]', function (result, path, ancestors) {
+  .node('!data[*]', function CypherStreamNodeData(result, path, ancestors) {
     var data = {};
     columns.forEach(function (column, i) {
-      data[column] = result[i].data
+      data[column] = result[i].data;
     });
-    stream.push(data)
+    stream.push(data);
   })
-  .done(function (complete) {
+  .done(function CypherStreamDone(complete) {
     stream.push(null);
   })
-  .fail(function(error) {
-    var err = new Error('Query failure: '+error.jsonBody.message);
+  .fail(function CypherStreamHandleError(error) {
+    // handle non-neo4j errors
+    if(!error.jsonBody) {
+      // just pass it through
+      stream.emit('error', error);
+      stream.push(null);
+      return;
+    }
+    // handle neo4j errors
+    var message    = 'Query failure';
+    var statusCode = 400;
+    if(error.jsonBody.message) {
+      message += ': '+error.jsonBody.message;
+    }
+    if(error.jsonBody.statusCode) {
+      statusCode = error.jsonBody.statusCode;
+    }
+    var err = new Error(message);
     err.neo4j = error.jsonBody;
-    err.neo4j.statusCode = error.statusCode;
+    err.neo4j.statusCode = statusCode;
     stream.emit('error', err);
     stream.push(null);
   });
 
-  this._read = function () { }
+  this._read = function () { };
   return this;
-};
+}
 
 module.exports = function Connection(url) {
   return function CypherStreamFactory (query, params) {
     return new CypherStream(url, query, params);
-  }
+  };
 };

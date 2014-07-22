@@ -36,10 +36,29 @@ describe('Cypher stream', function () {
     cypher('invalid query')
       .on('error', function (error) {
         errored = true;
-        String(error).should.equal('Error: Query failure: Invalid input \'i\': expected SingleStatement (line 1, column 1)\n"invalid query"\n ^');
+        String(error).should.equal('Error: Query failure: Invalid input \'i\': expected <init> (line 1, column 1)\n"invalid query"\n ^');
         error.neo4j.exception.should.equal('SyntaxException');
         error.neo4j.stacktrace.should.be.an.array;
         error.neo4j.statusCode.should.equal(400);
+      })
+      .on('end', function() {
+        errored.should.be.true;
+        done();
+      })
+      .resume() // need to manually start it since we have no on('data')
+    ;
+  });
+
+  it('handles non-neo4j errors', function (done) {
+    var errored = false;
+    var expectedError = new Error('Test');
+    cypher('match (n:Test) return n limit 1')
+      .on('data', function() {
+        throw expectedError;
+      })
+      .on('error', function (error) {
+        errored = true;
+        error.thrown.should.equal(expectedError);
       })
       .on('end', function() {
         errored.should.be.true;

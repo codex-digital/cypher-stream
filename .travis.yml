@@ -2,7 +2,7 @@ language: node_js
 node_js:
   - "0.10"
 env:
-    - NEO4J_VERSION="2.0.0"
+    - NEO4J_VERSION="2.0.3"
 before_install:
     # install Neo4j locally:
     - wget dist.neo4j.org/neo4j-community-$NEO4J_VERSION-unix.tar.gz
