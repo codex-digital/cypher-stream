@@ -1,6 +1,6 @@
 {
   "name": "cypher-stream",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Streams cypher query results in a clean format",
   "main": "index.js",
   "scripts": {
@@ -22,7 +22,7 @@
     "url": "https://github.com/brian-gates/cypher-stream/issues"
   },
   "dependencies": {
-    "oboe": "~1.14.0"
+    "oboe": "~1.15.0"
   },
   "devDependencies": {
     "mocha": "~1.17.1",
