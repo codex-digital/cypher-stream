@@ -1,19 +1,22 @@
 var should              = require('should');
 var cypher              = require('../index')('http://localhost:7474');
 
+function shouldNotError(error) {
+  should.not.exist(error);
+}
+
 describe('Cypher stream', function () {
   before(function (done){
     this.timeout(3000); // sometimes travis ci takes too long here
     cypher('FOREACH (x IN range(1,10) | CREATE(:Test {test: true}))')
       .on('end', done)
-      .on('error', function (error){
-        console.error(error);
-      })
+      .on('error', shouldNotError)
       .resume();
   });
   after(function (done){
     cypher('MATCH (n:Test) DELETE n')
       .on('end', done)
+      .on('error', shouldNotError)
       .resume();
   });
 
@@ -22,8 +25,9 @@ describe('Cypher stream', function () {
     cypher('match (n:Test) return n limit 10')
       .on('data', function (result){
         results++;
-        result.n.test.should.be.ok;
+        result.should.eql({ n: { test: true } });
       })
+      .on('error', shouldNotError)
       .on('end', function() {
         results.should.eql(10);
         done();
@@ -33,6 +37,7 @@ describe('Cypher stream', function () {
 
   it('handles errors', function (done) {
     var errored = false;
+
     cypher('invalid query')
       .on('error', function (error) {
         errored = true;
@@ -50,8 +55,9 @@ describe('Cypher stream', function () {
   });
 
   it('handles non-neo4j errors', function (done) {
-    var errored = false;
+    var errored       = false;
     var expectedError = new Error('Test');
+
     cypher('match (n:Test) return n limit 1')
       .on('data', function () {
         throw expectedError;
@@ -64,15 +70,15 @@ describe('Cypher stream', function () {
         errored.should.be.true;
         done();
       })
-      .resume() // need to manually start it since we have no on('data')
     ;
   });
 
   it('returns non-object values', function (done) {
     cypher('match (n:Test) return n.test as test limit 1')
       .on('data', function (result) {
-        result.test.should.be.true;
+        result.should.eql({ test: true });
       })
+      .on('error', shouldNotError)
       .on('end', done)
     ;
   });
@@ -80,8 +86,10 @@ describe('Cypher stream', function () {
   it('returns collections', function (done) {
     cypher('match (n:Test) return collect(n) as nodes limit 1')
       .on('data', function (result) {
-        result.nodes[0].test.should.be.true;
+        // 10x { test: true }
+        result.should.eql({ nodes: [{ test: true }, { test: true }, { test: true }, { test: true }, { test: true }, { test: true }, { test: true }, { test: true }, { test: true }, { test: true } ] });
       })
+      .on('error', shouldNotError)
       .on('end', done)
     ;
   });
@@ -89,8 +97,9 @@ describe('Cypher stream', function () {
   it('returns non-node collections', function (done) {
     cypher('match (n:Test) return labels(n) as labels limit 1')
       .on('data', function (result) {
-        result.labels[0].should.equal('Test');
+        result.should.eql({ labels: ['Test']});
       })
+      .on('error', shouldNotError)
       .on('end', done)
     ;
   });
@@ -100,6 +109,7 @@ describe('Cypher stream', function () {
       .on('data', function (result) {
         result.should.eql({ parent: { child: { grandchild: { test: true } } } });
       })
+      .on('error', shouldNotError)
       .on('end', done)
     ;
   });
