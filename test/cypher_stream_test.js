@@ -53,7 +53,7 @@ describe('Cypher stream', function () {
     var errored = false;
     var expectedError = new Error('Test');
     cypher('match (n:Test) return n limit 1')
-      .on('data', function() {
+      .on('data', function () {
         throw expectedError;
       })
       .on('error', function (error) {
@@ -66,6 +66,16 @@ describe('Cypher stream', function () {
       })
       .resume() // need to manually start it since we have no on('data')
     ;
+  });
+
+  it('returns non-node results', function (done) {
+    cypher('match (n:Test) return labels(n) as labels limit 1')
+      .on('data', function (result) {
+        result.labels[0].should.equal('Test');
+      })
+      .on('end', function () {
+        done();
+      });
   });
 
 });

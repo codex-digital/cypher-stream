@@ -22,7 +22,7 @@ function CypherStream (url, query, params) {
   .node('!data[*]', function CypherStreamNodeData(result, path, ancestors) {
     var data = {};
     columns.forEach(function (column, i) {
-      data[column] = result[i].data;
+      data[column] = result[i].data || result[i];
     });
     stream.push(data);
   })

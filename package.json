@@ -1,6 +1,6 @@
 {
   "name": "cypher-stream",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Streams cypher query results in a clean format",
   "main": "index.js",
   "scripts": {
