@@ -68,14 +68,31 @@ describe('Cypher stream', function () {
     ;
   });
 
-  it('returns non-node results', function (done) {
+  it('returns non-object values', function (done) {
+    cypher('match (n:Test) return n.test as test limit 1')
+      .on('data', function (result) {
+        result.test.should.be.true;
+      })
+      .on('end', done)
+    ;
+  });
+
+  it('returns collections', function (done) {
+    cypher('match (n:Test) return collect(n) as nodes limit 1')
+      .on('data', function (result) {
+        result.nodes[0].test.should.be.true;
+      })
+      .on('end', done)
+    ;
+  });
+
+  it('returns non-node collections', function (done) {
     cypher('match (n:Test) return labels(n) as labels limit 1')
       .on('data', function (result) {
         result.labels[0].should.equal('Test');
       })
-      .on('end', function () {
-        done();
-      });
+      .on('end', done)
+    ;
   });
 
 });

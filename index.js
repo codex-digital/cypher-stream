@@ -4,6 +4,10 @@ var util      = require('util');
 
 util.inherits(CypherStream, Readable);
 
+function extractData(item) {
+  return item.data;
+}
+
 function CypherStream (url, query, params) {
   Readable.call(this, { objectMode: true });
   var columns;
@@ -22,6 +26,10 @@ function CypherStream (url, query, params) {
   .node('!data[*]', function CypherStreamNodeData(result, path, ancestors) {
     var data = {};
     columns.forEach(function (column, i) {
+      if(result[i].length && result[i][0].data) {
+        data[column] = result[i].map(extractData);
+        return;
+      }
       data[column] = result[i].data || result[i];
     });
     stream.push(data);
