@@ -4,8 +4,21 @@ var util      = require('util');
 
 util.inherits(CypherStream, Readable);
 
+// recursively replace each node with its data property if available
 function extractData(item) {
-  return item.data;
+  if(item.data) {
+    return extractData(item.data);
+  }
+  var isArrayOrObject = ['array', 'object'].indexOf(typeof item) !== -1;
+  if(!isArrayOrObject) {
+    // filter only objects and arrays
+    return item;
+  }
+  // recurse on each property
+  Object.keys(item).forEach(function(key){
+    item[key] = extractData(item[key]);
+  });
+  return item;
 }
 
 function CypherStream (url, query, params) {
@@ -26,11 +39,7 @@ function CypherStream (url, query, params) {
   .node('!data[*]', function CypherStreamNodeData(result, path, ancestors) {
     var data = {};
     columns.forEach(function (column, i) {
-      if(result[i].length && result[i][0].data) {
-        data[column] = result[i].map(extractData);
-        return;
-      }
-      data[column] = result[i].data || result[i];
+      data[column] = extractData(result[i]);
     });
     stream.push(data);
   })

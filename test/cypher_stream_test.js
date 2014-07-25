@@ -95,4 +95,13 @@ describe('Cypher stream', function () {
     ;
   });
 
+  it('recursively returns data values', function (done) {
+    cypher('match (n:Test) return { child: { grandchild: n }} as parent limit 1')
+      .on('data', function (result) {
+        result.should.eql({ parent: { child: { grandchild: { test: true } } } });
+      })
+      .on('end', done)
+    ;
+  });
+
 });
