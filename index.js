@@ -6,6 +6,9 @@ util.inherits(CypherStream, Readable);
 
 // recursively replace each node with its data property if available
 function extractData(item) {
+  if(!item) {
+    return item;
+  }
   if(item.data) {
     return extractData(item.data);
   }

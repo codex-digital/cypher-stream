@@ -114,4 +114,14 @@ describe('Cypher stream', function () {
     ;
   });
 
+  it('handles null', function (done) {
+    cypher('return null')
+      .on('data', function (result) {
+        result.should.eql({ "null": null });
+      })
+      .on('error', shouldNotError)
+      .on('end', done)
+    ;
+  });
+
 });
