@@ -28,8 +28,11 @@ function CypherStream (url, query, params) {
   Readable.call(this, { objectMode: true });
   var columns;
   var stream = this;
+  if (url[url.length - 1] !== '/') {
+    url += '/';  // ensure trailing slash
+  }
   oboe({
-    url     : url+'/db/data/cypher',
+    url     : url+'db/data/cypher',
     method  : 'POST',
     headers : { "X-Stream": true, "Accept": "application/json" },
     body    : { query: query, params: params  }
