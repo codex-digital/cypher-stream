@@ -55,8 +55,12 @@ function CypherStream (url, query, params) {
   .fail(function CypherStreamHandleError(error) {
     // handle non-neo4j errors
     if(!error.jsonBody) {
-      // just pass it through
-      stream.emit('error', error);
+      // pass the Error instance through, creating one if necessary
+      var err = error.thrown || new Error('Neo4j ' + error.statusCode);
+      err.statusCode = error.statusCode
+      err.body = error.body
+      err.jsonBody = error.jsonBody;
+      stream.emit('error', err);
       stream.push(null);
       return;
     }
