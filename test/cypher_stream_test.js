@@ -124,4 +124,13 @@ describe('Cypher stream', function () {
     ;
   });
 
+  it('works with trailing slash', function (done){
+    var cyp = require('../index')('http://localhost:7474/');
+    cyp('match (n:Test) return n limit 1')
+      .on('error', shouldNotError)
+      .on('end', done)
+      .resume()
+    ;
+  });
+
 });
