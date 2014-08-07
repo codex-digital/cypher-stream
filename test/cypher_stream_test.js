@@ -23,7 +23,7 @@ describe('Cypher stream', function () {
   it('works', function (done) {
     var results = 0;
     cypher('match (n:Test) return n limit 10')
-      .on('data', function (result){
+      .on('data', function (result) {
         results++;
         result.should.eql({ n: { test: true } });
       })
@@ -41,10 +41,11 @@ describe('Cypher stream', function () {
     cypher('invalid query')
       .on('error', function (error) {
         errored = true;
-        String(error).should.equal('Error: Query failure: Invalid input \'i\': expected <init> (line 1, column 1)\n"invalid query"\n ^');
-        error.neo4j.exception.should.equal('SyntaxException');
-        error.neo4j.stacktrace.should.be.an.array;
-        error.neo4j.statusCode.should.equal(400);
+        String(error).should.equal('Error: Query Failure: Invalid input \'i\': expected <init> (line 1, column 1)\n"invalid query"\n ^');
+        // these aren't returned the same in transaction mode.
+        // error.neo4j.exception.should.equal('SyntaxException');
+        // error.neo4j.stacktrace.should.be.an.array;
+        // error.neo4j.statusCode.should.equal(400);
       })
       .on('end', function() {
         errored.should.be.true;

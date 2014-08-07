@@ -25,7 +25,7 @@ function extractData(item) {
   return item;
 }
 
-function CypherStream (url, query, params) {
+function CypherStream (url, statement, parameters) {
   Readable.call(this, { objectMode: true });
   var columns;
   var stream = this;
@@ -33,7 +33,7 @@ function CypherStream (url, query, params) {
     "X-Stream": true,
     "Accept": "application/json",
   };
-  
+
   var parsedUrl = urlParser.parse(url);
 
   //add HTTP basic auth if needed
@@ -47,17 +47,17 @@ function CypherStream (url, query, params) {
   }
 
   oboe({
-    url     : url+'db/data/cypher',
+    url     : url+'db/data/transaction/commit',
     method  : 'POST',
     headers : headers,
-    body    : { query: query, params: params  }
+    headers : { "X-Stream": true, "Accept": "application/json" },
+    body    : { statements: [ { statement: statement, parameters: parameters} ]  }
   })
-  .node('!columns', function CypherStreamNodeColumns(c) {
+  .node('!results[*].columns', function CypherStreamNodeColumns(c) {
     stream.emit('columns', c);
     columns = c;
-    this.forget();
   })
-  .node('!data[*]', function CypherStreamNodeData(result, path, ancestors) {
+  .node('!results[*].data[*].row', function CypherStreamNodeData(result, path, ancestors) {
     var data = {};
     columns.forEach(function (column, i) {
       data[column] = extractData(result[i]);
@@ -67,13 +67,22 @@ function CypherStream (url, query, params) {
   .done(function CypherStreamDone(complete) {
     stream.push(null);
   })
+  .node('!errors[*]', function (error, path, ancestors){
+    var message = "Query Failure";
+    if(error.message) {
+      message += ": " + error.message;
+    }
+    var err = new Error(message);
+    err.code = error.code;
+    stream.emit('error', err);
+  })
   .fail(function CypherStreamHandleError(error) {
     // handle non-neo4j errors
     if(!error.jsonBody) {
       // pass the Error instance through, creating one if necessary
       var err = error.thrown || new Error('Neo4j ' + error.statusCode);
-      err.statusCode = error.statusCode
-      err.body = error.body
+      err.statusCode = error.statusCode;
+      err.body = error.body;
       err.jsonBody = error.jsonBody;
       stream.emit('error', err);
       stream.push(null);
