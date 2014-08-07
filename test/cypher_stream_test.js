@@ -64,7 +64,7 @@ describe('Cypher stream', function () {
       })
       .on('error', function (error) {
         errored = true;
-        error.thrown.should.equal(expectedError);
+        error.should.equal(expectedError);
       })
       .on('end', function() {
         errored.should.be.true;
