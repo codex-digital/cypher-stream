@@ -1,6 +1,7 @@
 var oboe      = require('oboe');
 var Readable  = require('stream').Readable;
 var util      = require('util');
+var urlParser = require('url');
 
 util.inherits(CypherStream, Readable);
 
@@ -32,7 +33,8 @@ function CypherStream (url, query, params) {
     "X-Stream": true,
     "Accept": "application/json",
   };
-  var parsedUrl = require('url').parse(url);
+  
+  var parsedUrl = urlParser.parse(url);
 
   //add HTTP basic auth if needed
   if(parsedUrl.auth) {
