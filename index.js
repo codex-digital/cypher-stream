@@ -1,6 +1,7 @@
 var oboe      = require('oboe');
 var Readable  = require('stream').Readable;
 var util      = require('util');
+var urlParser = require('url');
 
 util.inherits(CypherStream, Readable);
 
@@ -28,13 +29,27 @@ function CypherStream (url, query, params) {
   Readable.call(this, { objectMode: true });
   var columns;
   var stream = this;
+  var headers = {
+    "X-Stream": true,
+    "Accept": "application/json",
+  };
+  
+  var parsedUrl = urlParser.parse(url);
+
+  //add HTTP basic auth if needed
+  if(parsedUrl.auth) {
+    headers['Authorization'] = 'Basic ' +
+               new Buffer(parsedUrl.auth).toString('base64');
+  }
+
   if (url[url.length - 1] !== '/') {
     url += '/';  // ensure trailing slash
   }
+
   oboe({
     url     : url+'db/data/cypher',
     method  : 'POST',
-    headers : { "X-Stream": true, "Accept": "application/json" },
+    headers : headers,
     body    : { query: query, params: params  }
   })
   .node('!columns', function CypherStreamNodeColumns(c) {
