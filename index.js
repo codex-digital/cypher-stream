@@ -50,7 +50,6 @@ function CypherStream (url, statement, parameters) {
     url     : url+'db/data/transaction/commit',
     method  : 'POST',
     headers : headers,
-    headers : { "X-Stream": true, "Accept": "application/json" },
     body    : { statements: [ { statement: statement, parameters: parameters} ]  }
   })
   .node('!results[*].columns', function CypherStreamNodeColumns(c) {
