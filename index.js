@@ -3,7 +3,6 @@ var Readable  = require('stream').Readable;
 var Duplex    = require('stream').Duplex;
 var util      = require('util');
 var urlParser = require('url');
-var debounce  = require('debounce');
 
 util.inherits(CypherStream, Readable);
 util.inherits(TransactionStream, Duplex);
