@@ -200,13 +200,13 @@ describe('Cypher stream', function () {
 
     it('automatically batches queries for performance', function (done) {
       // results may vary, depending on your system.
-      // tests on macbook pro were around ~600ms
+      // tests on macbook pro were around ~100ms
       // Travis CI is slow.  Give him more time.
       if (process.env.TRAVIS_CI) {
         this.timeout(5000);
-      };
+      }
       var results = 0;
-      var queriesToRun = 10000;
+      var queriesToRun = 1000;
       var queriesWritten = 0;
       var transaction = cypher.transaction()
         .on('data', function (result) {
