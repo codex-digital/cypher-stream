@@ -1,5 +1,5 @@
-var should              = require('should');
-var cypher              = require('../index')('http://localhost:7474');
+var should     = require('should');
+var cypher     = require('../index')('http://localhost:7474');
 
 function shouldNotError(error) {
   should.not.exist(error);
@@ -143,4 +143,42 @@ describe('Cypher stream', function () {
     ;
   });
 
+  describe('Transaction', function () {
+    it('works', function (done) {
+      var results = 0;
+      var transaction = cypher.transaction()
+        .on('data', function (result) {
+          results++;
+          result.should.eql({ n: { test: true } });
+        })
+        .on('error', shouldNotError)
+        .on('end', function() {
+          results.should.eql(1);
+          done();
+        })
+      ;
+      transaction.write('match (n:Test) return n limit 1');
+      transaction.commit();
+    });
+
+    it('handles multiple queries', function (done) {
+      var results = 0;
+      var transaction = cypher.transaction()
+        .on('data', function (result) {
+          results++;
+          result.should.eql({ n: { test: true } });
+        })
+        .on('error', shouldNotError)
+        .on('end', function() {
+          results.should.eql(2);
+          done();
+        })
+      ;
+      transaction.write('match (n:Test) return n limit 1');
+      transaction.write('match (n:Test) return n limit 1');
+      transaction.commit();
+    });
+  });
+
 });
+
