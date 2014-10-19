@@ -3,6 +3,7 @@ var Readable  = require('stream').Readable;
 var Duplex    = require('stream').Duplex;
 var util      = require('util');
 var urlParser = require('url');
+var debounce  = require('debounce');
 
 util.inherits(CypherStream, Readable);
 util.inherits(TransactionStream, Duplex);
@@ -81,8 +82,6 @@ function CypherStream(databaseUrl, statements, options) {
     _this.emit('expired');
     _this.push(null);
   }
-
-  // console.log(url, statements ? { statements: statements } : null);
 
   var stream = oboe({
     url     : url,
@@ -169,35 +168,58 @@ function TransactionStream(url, options) {
 
   var _this = this;
   var transactionId;
+  var debounceTime = options && options.debounceTime || 0;
+  var batchSize    = options && options.batchSize || 10000;
 
   this.commit = function () {
-    this.write({ commit: true });
+    return this.write({ commit: true });
   };
 
-  this._write = function (input, encoding, done) {
-    var statements;
+  function normalizeStatementInput(input) {
+    // "statement"
     if (typeof input === 'string') {
-      statements = [{ statement: input }];
+      return [{ statement: input }];
     }
-    if (input instanceof Array) {
-      statements = input;
+    // ["statement"]
+    if (input instanceof Array && typeof input[0] === 'string') {
+      return input.map(normalizeStatementInput);
     }
+    // [{ statement: "statement" }]
+    if (input instanceof Array && typeof input[0] === 'object') {
+      return input;
+    }
+    // { statment: "statement" }
     if (input.statement) {
-      statements = [{
+      return [{
         statement  : input.statement,
         parameters : input.parameters,
       }];
     }
-    var options = {};
+  }
+
+  function processChunk(input, encoding, callback) {
+    var statements = normalizeStatementInput(input);
+    var callbacks  = [callback];
+    var options    = {};
     if (input.commit) {
       options.commit = true;
     }
     if (transactionId) {
       options.transactionId = transactionId;
     }
-
-    // console.log(statements, input);
-
+    // combine any buffered queries
+    var buffer = _this._writableState.buffer;
+    while (buffer.length && statements.length < batchSize) {
+      var buffered = buffer.shift();
+      var bufferedStatements = normalizeStatementInput(buffered.chunk);
+      if (bufferedStatements) {
+        statements = statements.concat(bufferedStatements);
+      }
+      if (buffered.chunk.commit) {
+        options.commit = true;
+      }
+      callbacks.push(buffered.callback);
+    }
     var stream = new CypherStream(url, statements, options);
 
     stream.on('transactionId', function (txId) {
@@ -217,9 +239,16 @@ function TransactionStream(url, options) {
       _this.emit('error', errors);
     });
     stream.on('end', function () {
-      done();
+      callbacks.forEach(function (callback) {
+        callback();
+      });
     });
+  }
 
+  this._write = function (input, encoding, done) {
+    setTimeout(function () {
+      processChunk(input, encoding, done);
+    }, debounceTime);
   };
   this._read = function () { };
 

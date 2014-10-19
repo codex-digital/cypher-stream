@@ -161,7 +161,7 @@ describe('Cypher stream', function () {
       transaction.commit();
     });
 
-    it('handles multiple queries', function (done) {
+    it('handles multiple writes', function (done) {
       var results = 0;
       var transaction = cypher.transaction()
         .on('data', function (result) {
@@ -195,8 +195,13 @@ describe('Cypher stream', function () {
       transaction.write({ statement: 'match (n:Test) return n limit 1', commit: true });
     });
 
-    it('handles multiple queries in one write', function (done) {
+    it('automatically batches queries for performance', function (done) {
+      // results depend on performance, but should not exceed timeout of 2s
+      // tests on macbook pro were around ~600ms
+      this.timeout(2000);
       var results = 0;
+      var queriesToRun = 10000;
+      var queriesWritten = 0;
       var transaction = cypher.transaction()
         .on('data', function (result) {
           results++;
@@ -204,14 +209,13 @@ describe('Cypher stream', function () {
         })
         .on('error', shouldNotError)
         .on('end', function() {
-          results.should.eql(2);
+          results.should.eql(queriesToRun);
           done();
         })
       ;
-      transaction.write([
-        'match (n:Test) return n limit 1',
-        'match (n:Test) return n limit 1',
-      ]);
+      while (queriesWritten++ < queriesToRun) {
+        transaction.write('match (n:Test) return n limit 1');
+      }
       transaction.commit();
     });
 
