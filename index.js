@@ -27,8 +27,27 @@ function extractData(item) {
   return item;
 }
 
-function CypherStream (databaseUrl, statement, parameters, options) {
+function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
+
+  // Normalize various statement syntaxes to [ { statement: statement, parameters: parameters }]
+  // { statement: "statement" }
+  if (!(statements instanceof Array) && typeof statements === 'object') {
+    statements = [statements];
+  }
+  // "statement"
+  if (typeof statements === 'string') {
+    statements = [ { statement: statements } ];
+  }
+  // ["statement"]
+  if (statements instanceof Array && typeof statements[0] === 'string') {
+    statements = statements.map(function (statement) {
+      return { statement: statement };
+    });
+  }
+  if (!(statements instanceof Array) && !options.commit) {
+    throw new Error('CypherStream: No statement or commit request received.');
+  }
 
   var columns;
   var _this   = this;
@@ -51,29 +70,25 @@ function CypherStream (databaseUrl, statement, parameters, options) {
     databaseUrl += '/';  // ensure trailing slash
   }
   var url = databaseUrl+'db/data/transaction';
-  if(options && options.transactionId) {
+  if (options && options.transactionId) {
     url += '/'+options.transactionId;
   }
-  if(options && options.commit) {
+  if (options && options.commit) {
     url += '/commit';
   }
 
   function transactionExpired () {
     _this.emit('expired');
-    this.push(null);
+    _this.push(null);
   }
 
-  var body = { statements: [] };
-
-  if (statement) {
-    body.statements = [ { statement: statement, parameters: parameters} ];
-  }
+  // console.log(url, statements ? { statements: statements } : null);
 
   var stream = oboe({
     url     : url,
     method  : 'POST',
     headers : headers,
-    body    : body,
+    body    : statements ? { statements: statements } : null,
   });
 
   stream.on('start', function (status, headers) {
@@ -102,7 +117,7 @@ function CypherStream (databaseUrl, statement, parameters, options) {
   });
 
   stream.done(function CypherStreamDone(complete) {
-    if(options && options.commit) {
+    if (options && options.commit) {
       _this.emit('transactionComplete');
     }
     _this.push(null);
@@ -151,8 +166,6 @@ function CypherStream (databaseUrl, statement, parameters, options) {
 
 function TransactionStream(url, options) {
   Duplex.call(this, { objectMode: true });
-  // this._writableState.objectMode = true;
-  // this._readableState.objectMode = true;
 
   var _this = this;
   var transactionId;
@@ -161,19 +174,31 @@ function TransactionStream(url, options) {
     this.write({ commit: true });
   };
 
-  this._write = function (statement, encoding, done) {
-    if (typeof statement === 'string') {
-      statement = { query: statement };
+  this._write = function (input, encoding, done) {
+    var statements;
+    if (typeof input === 'string') {
+      statements = [{ statement: input }];
+    }
+    if (input instanceof Array) {
+      statements = input;
+    }
+    if (input.statement) {
+      statements = [{
+        statement  : input.statement,
+        parameters : input.parameters,
+      }];
     }
     var options = {};
-    if (statement.commit) {
+    if (input.commit) {
       options.commit = true;
     }
     if (transactionId) {
       options.transactionId = transactionId;
     }
 
-    var stream = new CypherStream(url, statement.query, statement.params, options);
+    // console.log(statements, input);
+
+    var stream = new CypherStream(url, statements, options);
 
     stream.on('transactionId', function (txId) {
       if (!transactionId) {
@@ -202,7 +227,8 @@ function TransactionStream(url, options) {
 
 module.exports = function Connection(url) {
   var factory = function CypherStreamFactory(query, params) {
-    return new CypherStream(url, query, params, { commit: true });
+    var statements = [ { statement: query, parameters: params } ];
+    return new CypherStream(url, statements, { commit: true });
   };
   factory.transaction = function (options) {
     return new TransactionStream(url, options);

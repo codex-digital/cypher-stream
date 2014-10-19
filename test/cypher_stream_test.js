@@ -178,6 +178,47 @@ describe('Cypher stream', function () {
       transaction.write('match (n:Test) return n limit 1');
       transaction.commit();
     });
+
+    it('handles write and commit', function (done) {
+      var results = 0;
+      var transaction = cypher.transaction()
+        .on('data', function (result) {
+          results++;
+          result.should.eql({ n: { test: true } });
+        })
+        .on('error', shouldNotError)
+        .on('end', function() {
+          results.should.eql(1);
+          done();
+        })
+      ;
+      transaction.write({ statement: 'match (n:Test) return n limit 1', commit: true });
+    });
+
+    it('handles multiple queries in one write', function (done) {
+      var results = 0;
+      var transaction = cypher.transaction()
+        .on('data', function (result) {
+          results++;
+          result.should.eql({ n: { test: true } });
+        })
+        .on('error', shouldNotError)
+        .on('end', function() {
+          results.should.eql(2);
+          done();
+        })
+      ;
+      transaction.write([
+        'match (n:Test) return n limit 1',
+        'match (n:Test) return n limit 1',
+      ]);
+      transaction.commit();
+    });
+
+    it('handles transaction expiration', function () {
+      // TODO
+    });
+
   });
 
 });
