@@ -10,7 +10,7 @@ describe('Cypher stream', function () {
     // Travis CI is slow.  Give him more time.
     if (process.env.TRAVIS_CI) {
       this.timeout(5000);
-    };
+    }
     cypher('FOREACH (x IN range(1,10) | CREATE(:Test {test: true}))')
       .on('end', done)
       .on('error', shouldNotError)
@@ -203,7 +203,7 @@ describe('Cypher stream', function () {
       // tests on macbook pro were around ~600ms
       // Travis CI is slow.  Give him more time.
       if (process.env.TRAVIS_CI) {
-        this.timeout(4000);
+        this.timeout(5000);
       };
       var results = 0;
       var queriesToRun = 10000;
