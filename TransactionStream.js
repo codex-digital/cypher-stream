@@ -37,7 +37,7 @@ function TransactionStream(url, options) {
     }
     // combine any buffered queries
     var buffer = self._writableState.buffer;
-    while (buffer.length && statements.length < batchSize) {
+    while (buffer.length && statements.length < batchSize && !options.rollback) {
       var buffered = buffer.shift();
       var bufferedStatements = normalizeStatementInput(buffered.chunk);
       if (bufferedStatements) {
@@ -59,9 +59,9 @@ function TransactionStream(url, options) {
       }
     });
 
-    stream.on('transactionComplete', function () {
-      self.push(null);
-    });
+    // stream.on('transactionComplete', function () {
+    //   self.push(null);
+    // });
 
     stream.on('data', function (data) {
       self.push(data);
@@ -73,6 +73,9 @@ function TransactionStream(url, options) {
       callbacks.forEach(function (callback) {
         callback();
       });
+      if(options.rollback || options.commit) {
+        self.push(null);
+      }
     });
   }
 

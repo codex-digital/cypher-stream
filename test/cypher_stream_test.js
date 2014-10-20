@@ -6,12 +6,13 @@ function shouldNotError(error) {
 }
 
 describe('Cypher stream', function () {
+  var testRecordsToCreate = 10;
   before(function (done){
     // Travis CI is slow.  Give him more time.
     if (process.env.TRAVIS_CI) {
       this.timeout(5000);
     }
-    cypher('FOREACH (x IN range(1,10) | CREATE(:Test {test: true}))')
+    cypher('FOREACH (x IN range(1,'+testRecordsToCreate+') | CREATE(:Test {test: true}))')
       .on('end', done)
       .on('error', shouldNotError)
       .resume();
@@ -221,7 +222,7 @@ describe('Cypher stream', function () {
       transaction.commit();
     });
 
-    it.skip('can do rollbacks', function (done) {
+    it('can do rollbacks', function (done) {
       var results = 0;
       var transaction = cypher.transaction()
         .on('data', function (result) {
@@ -230,11 +231,10 @@ describe('Cypher stream', function () {
         })
         .on('error', shouldNotError)
         .on('end', function () {
-          console.log('end');
           results.should.eql(0);
           cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
-            .on('data', function () {
-              results.count.should.equal(0);
+            .on('data', function (result) {
+              result.count.should.equal(0);
               done();
             })
             .on('error', shouldNotError)
@@ -244,7 +244,31 @@ describe('Cypher stream', function () {
       transaction.write('match (n:Test) set n.foo = "bar" return n');
       transaction.write('match (n:Test) set n.bar = "baz" return n');
       transaction.rollback();
+    });
 
+    it('can rollback even if the queries have had time to send', function (done) {
+      var results = 0;
+      var transaction = cypher.transaction()
+        .on('data', function (result) {
+          results++;
+        })
+        .on('error', shouldNotError)
+        .on('end', function () {
+          results.should.eql(testRecordsToCreate*2);
+          cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
+            .on('data', function (result) {
+              result.count.should.equal(0);
+              done();
+            })
+            .on('error', shouldNotError)
+          ;
+        })
+      ;
+      transaction.write('match (n:Test) set n.foo = "bar" return n');
+      transaction.write('match (n:Test) set n.bar = "baz" return n');
+      setTimeout(function () {
+        transaction.rollback();
+      }, 50);
     });
 
     it('handles transaction expiration', function () {

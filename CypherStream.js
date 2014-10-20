@@ -30,8 +30,6 @@ function CypherStream(databaseUrl, statements, options) {
 
   // if a rollback is requested before a transactionId is acquired, we can just stop here.
   if(!options.transactionId && options.rollback) {
-    console.log('quitting early, emitting transactionComplete and ending stream.');
-    this.emit('transactionComplete');
     this.push(null);
     return this;
   }
@@ -88,6 +86,7 @@ function CypherStream(databaseUrl, statements, options) {
     self.push(null);
   }
 
+
   var stream = oboe({
     url     : url,
     method  : options.transactionId && options.rollback ? 'DELETE': 'POST',
@@ -122,7 +121,7 @@ function CypherStream(databaseUrl, statements, options) {
 
   stream.done(function CypherStreamDone(complete) {
     clearTimeout(transactionTimeout);
-    if (options && options.commit) {
+    if (options && options.commit || options.rollback) {
       self.emit('transactionComplete');
     }
     self.push(null);
