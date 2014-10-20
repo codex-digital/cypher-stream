@@ -45,10 +45,6 @@ describe('Cypher stream', function () {
       .on('error', function (error) {
         errored = true;
         String(error).should.equal('Error: Query Failure: Invalid input \'i\': expected <init> (line 1, column 1)\n"invalid query"\n ^');
-        // these aren't returned the same in transaction mode.
-        // error.neo4j.exception.should.equal('SyntaxException');
-        // error.neo4j.stacktrace.should.be.an.array;
-        // error.neo4j.statusCode.should.equal(400);
       })
       .on('end', function() {
         errored.should.be.true;
@@ -223,6 +219,29 @@ describe('Cypher stream', function () {
         transaction.write('match (n:Test) return n limit 1');
       }
       transaction.commit();
+    });
+
+    it('can do rollbacks', function () {
+      var transaction = cypher.transaction()
+        .on('data', function (result) {
+          results++;
+          result.should.eql({ n: { test: true } });
+        })
+        .on('error', shouldNotError)
+        .on('end', function() {
+          results.should.eql(queriesToRun);
+          done();
+        })
+      ;
+      transaction.write('match (n:Test) set n.foo = "bar" return n');
+      transaction.write('match (n:Test) set n.bar = "baz" return n');
+      transaction.rollback();
+      cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
+        .on('data', function (results) {
+          results.count.should.equal(0);
+          done();
+        })
+      ;
     });
 
     it('handles transaction expiration', function () {

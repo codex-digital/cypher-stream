@@ -84,7 +84,7 @@ function CypherStream(databaseUrl, statements, options) {
 
   var stream = oboe({
     url     : url,
-    method  : 'POST',
+    method  : options.transactionId && options.rollback ? 'DELETE': 'POST',
     headers : headers,
     body    : statements ? { statements: statements } : null,
   });
@@ -115,6 +115,7 @@ function CypherStream(databaseUrl, statements, options) {
   });
 
   stream.done(function CypherStreamDone(complete) {
+    clearTimeout(transactionTimeout);
     if (options && options.commit) {
       _this.emit('transactionComplete');
     }
@@ -173,6 +174,10 @@ function TransactionStream(url, options) {
   this.commit = function () {
     return this.write({ commit: true });
   };
+
+  this.rollback = function () {
+    return this.write({ rollback: true });
+  }
 
   function normalizeStatementInput(input) {
     // "statement"
