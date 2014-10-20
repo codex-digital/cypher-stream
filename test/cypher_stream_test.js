@@ -221,27 +221,30 @@ describe('Cypher stream', function () {
       transaction.commit();
     });
 
-    it('can do rollbacks', function () {
+    it.skip('can do rollbacks', function (done) {
+      var results = 0;
       var transaction = cypher.transaction()
         .on('data', function (result) {
           results++;
           result.should.eql({ n: { test: true } });
         })
         .on('error', shouldNotError)
-        .on('end', function() {
-          results.should.eql(queriesToRun);
-          done();
+        .on('end', function () {
+          console.log('end');
+          results.should.eql(0);
+          cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
+            .on('data', function () {
+              results.count.should.equal(0);
+              done();
+            })
+            .on('error', shouldNotError)
+          ;
         })
       ;
       transaction.write('match (n:Test) set n.foo = "bar" return n');
       transaction.write('match (n:Test) set n.bar = "baz" return n');
       transaction.rollback();
-      cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
-        .on('data', function (results) {
-          results.count.should.equal(0);
-          done();
-        })
-      ;
+
     });
 
     it('handles transaction expiration', function () {
