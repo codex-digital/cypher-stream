@@ -45,3 +45,87 @@ it('handles errors', function (done) {
 });
 
 ```
+
+## Transactions
+
+Transactions are duplex streams that allow you to write query statements then commit or roll back the written queries.
+
+Transactions have three methods: `write`, `commit`, and `rollback`, which add queries and commit or rollback the queue respectively.
+
+### Creating a transaction
+
+``` js
+var transaction = cypher.transaction(options)
+```
+
+### Adding queries to a transaction
+
+``` js
+transaction.write(query_statement);
+```
+
+A `query_statement` can either be a string or a query statement object.  A query statement object consists of a `statement` property and an optional `parameters` property.  Additionally, you can pass an array of either.
+
+The following are all valid options:
+
+``` js
+var transaction = cypher.transaction();
+transaction.write('match (n:User) return n');
+transaction.write({ statement: 'match (n:User) return n' });
+transaction.write({
+  statement  : 'match (n:User) where n.first_name = {first_name} return n',
+  parameters : { first_name: "Bob" }
+});
+transaction.write([
+  {
+    statement  : 'match (n:User) where n.first_name = {first_name} return n',
+    parameters : { first_name: "Bob" }
+  },
+  'match (n:User) where n.first_name = {first_name} return n'
+]);
+```
+
+### Committing or rolling back
+
+
+``` js
+transaction.commit();
+transaction.rollback();
+```
+
+Alternatively, a query statement may also contain a `commit` or `rollback` property instead of calling `commit()` or `rollback()` directly.
+
+``` js
+transaction.write({ statement: 'match (n:User) return n', commit: true });
+transaction.write({
+  statement  : 'match (n:User) where n.first_name = {first_name} return n',
+  parameters : { first_name: "Bob" },
+  commit     : true
+});
+
+```
+
+### Syncronous Batching
+
+Transactions automatically batch syncronous writes garnering significant performance gains.
+
+``` js
+    var results = 0;
+    var queriesToRun = 10000;
+    var queriesWritten = 0;
+    var transaction = cypher.transaction()
+      .on('data', function (result) {
+        results++;
+        result.should.eql({ n: { test: true } });
+      })
+      .on('error', shouldNotError)
+      .on('end', function() {
+        results.should.eql(queriesToRun);
+        done();
+      })
+    ;
+    while (queriesWritten++ < queriesToRun) {
+      transaction.write('match (n:Test) return n limit 1');
+    }
+    transaction.commit();
+```

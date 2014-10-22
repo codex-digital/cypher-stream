@@ -1,5 +1,6 @@
 var should     = require('should');
 var cypher     = require('../index')('http://localhost:7474');
+var timekeeper = require('timekeeper');
 
 function shouldNotError(error) {
   should.not.exist(error);
@@ -171,8 +172,51 @@ describe('Transaction', function () {
     });
   });
 
-  it('handles transaction expiration', function () {
-    // TODO
+  // TODO fix this
+  it.skip('handles transaction expiration', function (done) {
+    var results = 0;
+    var transaction = cypher.transaction()
+      .on('data', function (result) {
+        results++;
+        result.should.eql({ n: { test: true } });
+      })
+      .on('error', shouldNotError)
+      .on('end', function() {
+        results.should.eql(1);
+        done();
+      })
+    ;
+    timekeeper.travel(new Date(Number(new Date())+100000000000));
+    transaction.write('match (n:Test) return n limit 1');
+    transaction.commit();
+  });
+
+  it.skip('batches async requests with specified debounceTime', function (done) {
+    var results = 0;
+    var queriesToRun = 1000;
+    var queriesWritten = 0;
+    var transaction = cypher.transaction()
+    // var transaction = cypher.transaction()
+      .on('data', function (result) {
+        results++;
+        result.should.eql({ n: { test: true } });
+      })
+      .on('error', shouldNotError)
+      .on('end', function() {
+        results.should.eql(queriesToRun);
+        done();
+      })
+    ;
+    var interval = setInterval(function () {
+      if (queriesWritten >= queriesToRun) {
+        clearTimeout(interval);
+        transaction.commit();
+        return;
+      }
+      transaction.write('match (n:Test) return n limit 1');
+      queriesWritten++;
+    }, 1);
+
   });
 
 });
