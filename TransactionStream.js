@@ -15,11 +15,11 @@ function TransactionStream(url, options) {
   var batchSize    = options && options.batchSize || 10000;
 
   this.commit = function () {
-    return this.write({ commit: true });
+    return self.write({ commit: true });
   };
 
   this.rollback = function () {
-    return this.write({ rollback: true });
+    return self.write({ rollback: true });
   };
 
   function processChunk(input, encoding, callback) {
@@ -59,16 +59,22 @@ function TransactionStream(url, options) {
       }
     });
 
-    // stream.on('transactionComplete', function () {
-    //   self.push(null);
-    // });
+    stream.on('expires', function (date) {
+      self.emit('expires', date);
+    });
+
+    stream.on('transactionExpired', function () {
+      self.emit('expired');
+    });
 
     stream.on('data', function (data) {
       self.push(data);
     });
+
     stream.on('error', function (errors) {
       self.emit('error', errors);
     });
+
     stream.on('end', function () {
       callbacks.forEach(function (callback) {
         callback();
@@ -77,6 +83,7 @@ function TransactionStream(url, options) {
         self.push(null);
       }
     });
+
   }
 
   this._write = function (input, encoding, done) {

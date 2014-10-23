@@ -48,6 +48,7 @@ it('handles errors', function (done) {
 
 ## Transactions
 
+
 Transactions are duplex streams that allow you to write query statements then commit or roll back the written queries.
 
 Transactions have three methods: `write`, `commit`, and `rollback`, which add queries and commit or rollback the queue respectively.
@@ -105,23 +106,16 @@ transaction.write({
 
 ```
 
-### Syncronous Batching
+### Query Batching
 
-Transactions automatically batch syncronous writes garnering significant performance gains.
+Transactions automatically batch queries for significant performance gains.  Try the following:
 
 ``` js
-    var results = 0;
     var queriesToRun = 10000;
     var queriesWritten = 0;
     var transaction = cypher.transaction()
       .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(queriesToRun);
-        done();
+        console.log(result);
       })
     ;
     while (queriesWritten++ < queriesToRun) {

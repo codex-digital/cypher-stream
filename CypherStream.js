@@ -82,10 +82,10 @@ function CypherStream(databaseUrl, statements, options) {
   }
 
   function transactionExpired () {
-    self.emit('expired');
-    self.push(null);
+    self.emit('transactionExpired');
   }
 
+  // console.log("%s %s %s", options.transactionId && options.rollback ? 'DELETE': 'POST', url, statements && statements[0])
 
   var stream = oboe({
     url     : url,
@@ -100,10 +100,10 @@ function CypherStream(databaseUrl, statements, options) {
     }
   });
 
-  stream.node('!transaction.expires', function (result, path, ancestors) {
+  stream.node('!transaction.expires', function (date, path, ancestors) {
     clearTimeout(transactionTimeout);
-    var timeTillExpire = Date.parse('Sun, 19 Oct 2014 05:06:47')-Date.now();
-    transactionTimeout = setTimeout(transactionExpired, timeTillExpire);
+    var transactionTimeout = setTimeout(transactionExpired, Date.parse(date)-Date.now());
+    self.emit('expires', date);
   });
 
   stream.node('!results[*].columns', function CypherStreamNodeColumns(c) {

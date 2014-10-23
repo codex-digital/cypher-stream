@@ -172,51 +172,73 @@ describe('Transaction', function () {
     });
   });
 
-  // TODO fix this
-  it.skip('handles transaction expiration', function (done) {
-    var results = 0;
+  it('emits expiration', function (done) {
+    var called = false;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
       .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(1);
+      .on('expires', function (date) {
+        called = true;
+      })
+      .on('end', function () {
+        called.should.equal(true);
         done();
       })
     ;
-    timekeeper.travel(new Date(Number(new Date())+100000000000));
+
+    transaction.resume();
+
     transaction.write('match (n:Test) return n limit 1');
-    transaction.commit();
+
+    setTimeout(function() {
+      transaction.write('match (n:Test) return n limit 1');
+      transaction.commit();
+    }, 0);
+
   });
 
-  it.skip('batches async requests with specified debounceTime', function (done) {
-    var results = 0;
-    var queriesToRun = 1000;
-    var queriesWritten = 0;
-    var transaction = cypher.transaction()
-    // var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(queriesToRun);
-        done();
-      })
-    ;
-    var interval = setInterval(function () {
-      if (queriesWritten >= queriesToRun) {
-        clearTimeout(interval);
-        transaction.commit();
-        return;
-      }
-      transaction.write('match (n:Test) return n limit 1');
-      queriesWritten++;
-    }, 1);
+  it.skip('handles expiration', function (done) {
+    var serverTimeout = 60; // set this equal to neo4j-server.properties -> org.neo4j.server.transaction.timeout (default 60)
+    var errorCalled   = false;
+    var expiresCalled = false;
+    var expiredCalled = false;
+    var transaction   = cypher.transaction();
 
+    this.timeout((serverTimeout+10)*1000);
+
+    transaction.on('expires', function (date) {
+      expiresCalled = true;
+    });
+
+    transaction.on('expired', function () {
+      expiredCalled = true;
+    });
+
+    transaction.on('error', function (error) {
+      errorCalled   = true;
+      error.neo4j.should.eql({
+        statusCode: 400,
+        errors: [{
+          code    : 'Neo.ClientError.Transaction.UnknownId',
+          message : 'Unrecognized transaction id. Transaction may have timed out and been rolled back.'
+        }],
+        results: []
+      });
+    });
+
+    transaction.on('end', function () {
+      errorCalled  .should.equal(true);
+      expiresCalled.should.equal(true);
+      expiredCalled.should.equal(true);
+      done();
+    });
+
+    transaction.resume();
+    transaction.write('match (n:Test) return n limit 1');
+
+    setTimeout(function() {
+      transaction.write('match (n:Test) return n limit 1');
+      transaction.commit();
+    }, ((serverTimeout+5)*1000));
   });
 
 });
