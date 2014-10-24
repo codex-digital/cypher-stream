@@ -1,6 +1,5 @@
 var should     = require('should');
 var cypher     = require('../index')('http://localhost:7474');
-var timekeeper = require('timekeeper');
 
 function shouldNotError(error) {
   should.not.exist(error);
