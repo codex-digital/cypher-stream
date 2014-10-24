@@ -60,6 +60,27 @@ describe('Transaction', function () {
     transaction.commit();
   });
 
+  it('handles accepts a variety of statement formats', function (done) {
+    var results = 0;
+    var transaction = cypher.transaction()
+      .on('data', function (result) {
+        results++;
+        result.should.eql({ n: { test: true } });
+      })
+      .on('error', shouldNotError)
+      .on('end', function() {
+        results.should.eql(6);
+        done();
+      })
+    ;
+    var query = 'match (n:Test) return n limit 1';
+    transaction.write(query);
+    transaction.write({ statement: query });
+    transaction.write([ query, query ]);
+    transaction.write([ { statement: query }, { statement: query } ]);
+    transaction.commit();
+  });
+
   it('handles write and commit', function (done) {
     var results = 0;
     var transaction = cypher.transaction()

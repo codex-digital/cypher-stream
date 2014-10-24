@@ -1,6 +1,7 @@
-var Duplex            = require('stream').Duplex;
-var util              = require('util');
-var CypherStream      = require('./CypherStream');
+var Duplex       = require('stream').Duplex;
+var util         = require('util');
+var CypherStream = require('./CypherStream');
+var normalize    = require('./normalize-query-statement');
 
 util.inherits(TransactionStream, Duplex);
 
@@ -23,7 +24,7 @@ function TransactionStream(url, options) {
   };
 
   function processChunk(input, encoding, callback) {
-    var statements = normalizeStatementInput(input);
+    var statements = normalize(input);
     var callbacks  = [callback];
     var options    = {};
     if (input.commit) {
@@ -39,7 +40,7 @@ function TransactionStream(url, options) {
     var buffer = self._writableState.buffer;
     while (buffer.length && statements.length < batchSize && !options.rollback) {
       var buffered = buffer.shift();
-      var bufferedStatements = normalizeStatementInput(buffered.chunk);
+      var bufferedStatements = normalize(buffered.chunk);
       if (bufferedStatements) {
         statements = statements.concat(bufferedStatements);
       }
@@ -51,6 +52,7 @@ function TransactionStream(url, options) {
       }
       callbacks.push(buffered.callback);
     }
+
     var stream = new CypherStream(url, statements, options);
 
     stream.on('transactionId', function (txId) {
@@ -94,28 +96,5 @@ function TransactionStream(url, options) {
   this._read = function () { };
 
 }
-
-function normalizeStatementInput(input) {
-  // "statement"
-  if (typeof input === 'string') {
-    return [{ statement: input }];
-  }
-  // ["statement"]
-  if (input instanceof Array && typeof input[0] === 'string') {
-    return input.map(normalizeStatementInput);
-  }
-  // [{ statement: "statement" }]
-  if (input instanceof Array && typeof input[0] === 'object') {
-    return input;
-  }
-  // { statment: "statement" }
-  if (input.statement) {
-    return [{
-      statement  : input.statement,
-      parameters : input.parameters,
-    }];
-  }
-}
-
 
 module.exports = TransactionStream;

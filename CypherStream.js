@@ -2,6 +2,7 @@ var oboe      = require('oboe');
 var Readable  = require('stream').Readable;
 var util      = require('util');
 var urlParser = require('url');
+var normalize = require('./normalize-query-statement');
 
 util.inherits(CypherStream, Readable);
 
@@ -27,40 +28,31 @@ function extractData(item) {
 
 function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
+  statements = normalize(statements).filter(function (statement) {
+    if(statement.commit) {
+      options.commit = true;
+    }
+    if(statement.rollback) {
+      options.rollback = true;
+    }
+    return statement.statement;
+  });
 
-  // if a rollback is requested before a transactionId is acquired, we can just stop here.
-  if(!options.transactionId && options.rollback) {
+  // if a rollback is requested before a transactionId is acquired, we can quit early.
+  if(options.rollback && !options.transactionId) {
     this.push(null);
     return this;
   }
 
-  // Normalize various statement syntaxes to [ { statement: statement, parameters: parameters }]
-  // { statement: "statement" }
-  if (!(statements instanceof Array) && typeof statements === 'object') {
-    statements = [statements];
-  }
-  // "statement"
-  if (typeof statements === 'string') {
-    statements = [ { statement: statements } ];
-  }
-  // ["statement"]
-  if (statements instanceof Array && typeof statements[0] === 'string') {
-    statements = statements.map(function (statement) {
-      return { statement: statement };
-    });
-  }
-  if (!(statements instanceof Array) && !options.commit && !options.rollback) {
-    throw new Error('CypherStream: No statement or commit/rollback request received.');
-  }
 
   var columns;
+  var transactionTimeout;
   var self    = this;
   var headers = {
     "X-Stream": true,
     "Accept": "application/json",
   };
 
-  var transactionTimeout;
 
   var parsedUrl = urlParser.parse(databaseUrl);
 
@@ -85,24 +77,29 @@ function CypherStream(databaseUrl, statements, options) {
     self.emit('transactionExpired');
   }
 
-  // console.log("%s %s %s", options.transactionId && options.rollback ? 'DELETE': 'POST', url, statements && statements[0])
+  // console.log("%s %s", options.transactionId && options.rollback ? 'DELETE': 'POST', url, statements);
 
   var stream = oboe({
     url     : url,
     method  : options.transactionId && options.rollback ? 'DELETE': 'POST',
     headers : headers,
-    body    : statements ? { statements: statements } : null,
+    body    : { statements: statements },
   });
 
-  stream.on('start', function (status, headers) {
+  stream.node('!.*', function CypherStreamAll(){
+    return oboe.drop; // discard records as soon as they're processed to conserve memory
+  });
+
+  stream.on('start', function CypherStreamStart(status, headers) {
     if (headers.location) {
       self.emit('transactionId', headers.location.split('/').pop());
     }
   });
 
-  stream.node('!transaction.expires', function (date, path, ancestors) {
+  stream.node('!transaction.expires', function CypherStreamTransactionExpires(date, path, ancestors) {
     clearTimeout(transactionTimeout);
-    var transactionTimeout = setTimeout(transactionExpired, Date.parse(date)-Date.now());
+    var timeTillExpired = Date.parse(date)-Date.now();
+    transactionTimeout  = setTimeout(transactionExpired, timeTillExpired);
     self.emit('expires', date);
   });
 
@@ -119,7 +116,7 @@ function CypherStream(databaseUrl, statements, options) {
     self.push(data);
   });
 
-  stream.done(function CypherStreamDone(complete) {
+  stream.on('done', function CypherStreamDone(complete) {
     clearTimeout(transactionTimeout);
     if (options && options.commit || options.rollback) {
       self.emit('transactionComplete');
@@ -127,7 +124,7 @@ function CypherStream(databaseUrl, statements, options) {
     self.push(null);
   });
 
-  stream.node('!errors[*]', function (error, path, ancestors) {
+  stream.node('!errors[*]', function CypherStreamHandleError(error, path, ancestors) {
     var message = "Query Failure";
     if (error.message) {
       message += ": " + error.message;
@@ -137,7 +134,7 @@ function CypherStream(databaseUrl, statements, options) {
     self.emit('error', err);
   });
 
-  stream.fail(function CypherStreamHandleError(error) {
+  stream.on('fail', function CypherStreamHandleFailure(error) {
     // handle non-neo4j errors
     if (!error.jsonBody) {
       // pass the Error instance through, creating one if necessary
