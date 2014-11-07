@@ -261,4 +261,35 @@ describe('Transaction', function () {
     }, ((serverTimeout+5)*1000));
   });
 
+  it('calls statement callbacks', function (done) {
+    var results = 0;
+    var calls   = 0;
+    var ended   = 0;
+    var query   = 'match (n:Test) return n limit 2';
+    function callback(stream) {
+      stream
+        .on('data', function (result) {
+          result.should.eql({ n: { test: true } });
+          results++;
+        })
+        .on('end', function () {
+          ended++;
+        })
+      ;
+      calls++;
+    }
+    var statement = { statement: query, callback: callback };
+    var transaction = cypher.transaction();
+    transaction.write(statement);
+    transaction.write(statement);
+    transaction.commit();
+    transaction.resume();
+    transaction.on('end', function() {
+      calls.should.equal(2);
+      ended.should.equal(2);
+      results.should.equal(4);
+      done();
+    });
+  });
+
 });

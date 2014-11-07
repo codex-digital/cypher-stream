@@ -113,15 +113,76 @@ transaction.write({
 Transactions automatically batch queries for significant performance gains.  Try the following:
 
 ``` js
-    var queriesToRun = 10000;
-    var queriesWritten = 0;
-    var transaction = cypher.transaction()
-      .on('data', function (result) {
-        console.log(result);
-      })
-    ;
-    while (queriesWritten++ < queriesToRun) {
-      transaction.write('match (n:Test) return n limit 1');
-    }
-    transaction.commit();
+var queriesToRun = 10000;
+var queriesWritten = 0;
+var transaction = cypher.transaction()
+  .on('data', function (result) {
+    console.log(result);
+  })
+;
+while (queriesWritten++ < queriesToRun) {
+  transaction.write('match (n:Test) return n limit 1');
+}
+transaction.commit();
+```
+
+## Stream per statement
+
+To get a stream per statement, just pass a `callback` function with the statement object.  This works for regular cypher calls and transactions.
+
+``` js
+var results = 0;
+var calls   = 0;
+var ended   = 0;
+var query   = 'match (n:Test) return n limit 2';
+function callback(stream) {
+  stream
+    .on('data', function (result) {
+      result.should.eql({ n: { test: true } });
+      results++;
+    })
+    .on('end', function () {
+      ended++;
+    })
+  ;
+  calls++;
+}
+var statement = { statement: query, callback: callback };
+cypher([ statement, statement ]).on('end', function () {
+  calls.should.equal(2);
+  ended.should.equal(2);
+  results.should.equal(4);
+  done();
+}).resume();
+```
+
+``` js
+var results = 0;
+var calls   = 0;
+var ended   = 0;
+var query   = 'match (n:Test) return n limit 2';
+function callback(stream) {
+  stream
+    .on('data', function (result) {
+      result.should.eql({ n: { test: true } });
+      results++;
+    })
+    .on('end', function () {
+      ended++;
+    })
+  ;
+  calls++;
+}
+var statement = { statement: query, callback: callback };
+var transaction = cypher.transaction();
+transaction.write(statement);
+transaction.write(statement);
+transaction.commit();
+transaction.resume();
+transaction.on('end', function() {
+  calls.should.equal(2);
+  ended.should.equal(2);
+  results.should.equal(4);
+  done();
+});
 ```
