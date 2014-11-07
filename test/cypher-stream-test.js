@@ -158,5 +158,25 @@ describe('Cypher stream', function () {
     ;
   });
 
+  it('handles accepts a variety of statement formats', function (done) {
+    var results = 0;
+    var query   = 'match (n:Test) return n limit 1';
+    [
+      cypher(query),
+      cypher({ statement: query }),
+      cypher([ query, query ]),
+      cypher([ { statement: query }, { statement: query } ]),
+    ].forEach(function (stream) {
+      stream.on('data', function (result) {
+        results++;
+        result.should.eql({ n: { test: true } });
+        if(results === 6) {
+          done();
+        }
+      });
+    });
+  });
+
+
 });
 

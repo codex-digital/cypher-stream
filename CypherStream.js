@@ -44,7 +44,6 @@ function CypherStream(databaseUrl, statements, options) {
     return this;
   }
 
-
   var columns;
   var transactionTimeout;
   var self    = this;
@@ -77,7 +76,7 @@ function CypherStream(databaseUrl, statements, options) {
     self.emit('transactionExpired');
   }
 
-  // console.log("%s %s", options.transactionId && options.rollback ? 'DELETE': 'POST', url, statements);
+  // console.log("%s %s", options.transactionId && options.rollback ? 'DELETE': 'POST', url, JSON.stringify(statements));
 
   var stream = oboe({
     url     : url,
