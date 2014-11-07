@@ -1,8 +1,9 @@
-var oboe      = require('oboe');
-var Readable  = require('stream').Readable;
-var util      = require('util');
-var urlParser = require('url');
-var normalize = require('./normalize-query-statement');
+var oboe        = require('oboe');
+var Readable    = require('stream').Readable;
+var PassThrough = require('stream').PassThrough;
+var util        = require('util');
+var urlParser   = require('url');
+var normalize   = require('./normalize-query-statement');
 
 util.inherits(CypherStream, Readable);
 
@@ -51,14 +52,14 @@ function CypherStream(databaseUrl, statements, options) {
     "X-Stream": true,
     "Accept": "application/json",
   };
-
+  var currentStatement = 0;
+  var callbackStream   = null;
 
   var parsedUrl = urlParser.parse(databaseUrl);
 
   //add HTTP basic auth if needed
   if (parsedUrl.auth) {
-    headers['Authorization'] = 'Basic ' +
-               new Buffer(parsedUrl.auth).toString('base64');
+    headers['Authorization'] = 'Basic ' + new Buffer(parsedUrl.auth).toString('base64');
   }
 
   if (databaseUrl[databaseUrl.length - 1] !== '/') {
@@ -102,6 +103,19 @@ function CypherStream(databaseUrl, statements, options) {
     self.emit('expires', date);
   });
 
+  stream.path('!results[*]', function CypherStreamResult(result) {
+    if (callbackStream) {
+      self.unpipe(callbackStream);
+      callbackStream.end();
+      callbackStream = null;
+    }
+    if (statements[currentStatement].callback) {
+      callbackStream = new PassThrough({ objectMode: true });
+      statements[currentStatement].callback(callbackStream);
+    }
+    currentStatement++;
+  });
+
   stream.node('!results[*].columns', function CypherStreamNodeColumns(c) {
     self.emit('columns', c);
     columns = c;
@@ -112,6 +126,9 @@ function CypherStream(databaseUrl, statements, options) {
     columns.forEach(function (column, i) {
       data[column] = extractData(result[i]);
     });
+    if (callbackStream) {
+      callbackStream.write(data);
+    }
     self.push(data);
   });
 
@@ -119,6 +136,9 @@ function CypherStream(databaseUrl, statements, options) {
     clearTimeout(transactionTimeout);
     if (options && options.commit || options.rollback) {
       self.emit('transactionComplete');
+    }
+    if (callbackStream) {
+      callbackStream.end();
     }
     self.push(null);
   });
@@ -128,7 +148,7 @@ function CypherStream(databaseUrl, statements, options) {
     if (error.message) {
       message += ": " + error.message;
     }
-    var err = new Error(message);
+    var err  = new Error(message);
     err.code = error.code;
     self.emit('error', err);
   });

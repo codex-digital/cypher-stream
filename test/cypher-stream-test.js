@@ -32,7 +32,7 @@ describe('Cypher stream', function () {
         result.should.eql({ n: { test: true } });
       })
       .on('error', shouldNotError)
-      .on('end', function() {
+      .on('end', function () {
         results.should.eql(10);
         done();
       })
@@ -47,7 +47,7 @@ describe('Cypher stream', function () {
         errored = true;
         String(error).should.equal('Error: Query Failure: Invalid input \'i\': expected <init> (line 1, column 1)\n"invalid query"\n ^');
       })
-      .on('end', function() {
+      .on('end', function () {
         errored.should.be.true;
         done();
       })
@@ -67,7 +67,7 @@ describe('Cypher stream', function () {
         errored = true;
         error.should.equal(expectedError);
       })
-      .on('end', function() {
+      .on('end', function () {
         errored.should.be.true;
         done();
       })
@@ -177,6 +177,31 @@ describe('Cypher stream', function () {
     });
   });
 
+  it('calls statement callbacks', function (done) {
+    var results = 0;
+    var calls   = 0;
+    var ended   = 0;
+    var query   = 'match (n:Test) return n limit 2';
+    function callback(stream) {
+      stream
+        .on('data', function (result) {
+          result.should.eql({ n: { test: true } });
+          results++;
+        })
+        .on('end', function () {
+          ended++;
+        })
+      ;
+      calls++;
+    }
+    var statement = { statement: query, callback: callback };
+    cypher([ statement, statement ]).on('end', function () {
+      calls.should.equal(2);
+      ended.should.equal(2);
+      results.should.equal(4);
+      done();
+    }).resume();
+  });
 
 });
 
