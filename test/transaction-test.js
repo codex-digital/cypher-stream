@@ -1,3 +1,4 @@
+'use strict';
 var should     = require('should');
 var cypher     = require('../index')('http://localhost:7474');
 
@@ -150,7 +151,7 @@ describe('Transaction', function () {
   it('can rollback even if the queries have had time to send', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
+      .on('data', function () {
         results++;
       })
       .on('error', shouldNotError)
@@ -196,7 +197,7 @@ describe('Transaction', function () {
     var called = false;
     var transaction = cypher.transaction()
       .on('error', shouldNotError)
-      .on('expires', function (date) {
+      .on('expires', function () {
         called = true;
       })
       .on('end', function () {
@@ -217,7 +218,8 @@ describe('Transaction', function () {
   });
 
   it.skip('handles expiration', function (done) {
-    var serverTimeout = 60; // set this equal to neo4j-server.properties -> org.neo4j.server.transaction.timeout (default 60)
+    // set this equal to neo4j-server.properties -> org.neo4j.server.transaction.timeout (default 60)
+    var serverTimeout = 60;
     var errorCalled   = false;
     var expiresCalled = false;
     var expiredCalled = false;
@@ -225,7 +227,7 @@ describe('Transaction', function () {
 
     this.timeout((serverTimeout+10)*1000);
 
-    transaction.on('expires', function (date) {
+    transaction.on('expires', function () {
       expiresCalled = true;
     });
 

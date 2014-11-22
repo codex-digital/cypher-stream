@@ -1,3 +1,4 @@
+'use strict';
 var oboe        = require('oboe');
 var Readable    = require('stream').Readable;
 var PassThrough = require('stream').PassThrough;
@@ -29,8 +30,8 @@ function CypherStream(databaseUrl, statements, options) {
   var transactionTimeout;
   var self    = this;
   var headers = {
-    "X-Stream": true,
-    "Accept": "application/json",
+    'X-Stream': true,
+    'Accept': 'application/json',
   };
   var currentStatement = 0;
   var callbackStream   = null;
@@ -39,7 +40,7 @@ function CypherStream(databaseUrl, statements, options) {
 
   //add HTTP basic auth if needed
   if (parsedUrl.auth) {
-    headers['Authorization'] = 'Basic ' + new Buffer(parsedUrl.auth).toString('base64');
+    headers.Authorization = 'Basic ' + new Buffer(parsedUrl.auth).toString('base64');
   }
 
   if (databaseUrl[databaseUrl.length - 1] !== '/') {
@@ -57,7 +58,7 @@ function CypherStream(databaseUrl, statements, options) {
     self.emit('transactionExpired');
   }
 
-  // console.log("%s %s", options.transactionId && options.rollback ? 'DELETE': 'POST', url, JSON.stringify(statements));
+  // console.log('%s %s', options.transactionId && options.rollback ? 'DELETE': 'POST', url, JSON.stringify(statements));
 
   var stream = oboe({
     url     : url,
@@ -76,14 +77,14 @@ function CypherStream(databaseUrl, statements, options) {
     }
   });
 
-  stream.node('!transaction.expires', function CypherStreamTransactionExpires(date, path, ancestors) {
+  stream.node('!transaction.expires', function CypherStreamTransactionExpires(date) {
     clearTimeout(transactionTimeout);
     var timeTillExpired = Date.parse(date)-Date.now();
     transactionTimeout  = setTimeout(transactionExpired, timeTillExpired);
     self.emit('expires', date);
   });
 
-  stream.path('!results[*]', function CypherStreamResult(result) {
+  stream.path('!results[*]', function CypherStreamResult() {
     if (callbackStream) {
       self.unpipe(callbackStream);
       callbackStream.end();
@@ -101,7 +102,7 @@ function CypherStream(databaseUrl, statements, options) {
     columns = c;
   });
 
-  stream.node('!results[*].data[*].row', function CypherStreamNodeData(result, path, ancestors) {
+  stream.node('!results[*].data[*].row', function CypherStreamNodeData(result) {
     var data = {};
     columns.forEach(function (column, i) {
       data[column] = result[i];
@@ -112,7 +113,7 @@ function CypherStream(databaseUrl, statements, options) {
     self.push(data);
   });
 
-  stream.on('done', function CypherStreamDone(complete) {
+  stream.on('done', function CypherStreamDone() {
     clearTimeout(transactionTimeout);
     if (options && options.commit || options.rollback) {
       self.emit('transactionComplete');
@@ -123,10 +124,10 @@ function CypherStream(databaseUrl, statements, options) {
     self.push(null);
   });
 
-  stream.node('!errors[*]', function CypherStreamHandleError(error, path, ancestors) {
-    var message = "Query Failure";
+  stream.node('!errors[*]', function CypherStreamHandleError(error) {
+    var message = 'Query Failure';
     if (error.message) {
-      message += ": " + error.message;
+      message += ': ' + error.message;
     }
     var err  = new Error(message);
     err.code = error.code;
@@ -134,10 +135,11 @@ function CypherStream(databaseUrl, statements, options) {
   });
 
   stream.on('fail', function CypherStreamHandleFailure(error) {
+    var err;
     // handle non-neo4j errors
     if (!error.jsonBody) {
       // pass the Error instance through, creating one if necessary
-      var err = error.thrown || new Error('Neo4j ' + error.statusCode);
+      err = error.thrown || new Error('Neo4j ' + error.statusCode);
       err.statusCode = error.statusCode;
       err.body = error.body;
       err.jsonBody = error.jsonBody;
@@ -154,7 +156,7 @@ function CypherStream(databaseUrl, statements, options) {
     if (error.jsonBody.statusCode) {
       statusCode = error.jsonBody.statusCode;
     }
-    var err = new Error(message);
+    err = new Error(message);
     err.neo4j = error.jsonBody;
     err.neo4j.statusCode = statusCode;
     self.emit('error', err);

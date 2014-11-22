@@ -1,3 +1,4 @@
+'use strict';
 var should     = require('should');
 var cypher     = require('../index')('http://localhost:7474');
 
@@ -118,7 +119,7 @@ describe('Cypher stream', function () {
   it('handles null', function (done) {
     cypher('return null')
       .on('data', function (result) {
-        result.should.eql({ "null": null });
+        result.should.eql({ 'null': null });
       })
       .on('error', shouldNotError)
       .on('end', done)

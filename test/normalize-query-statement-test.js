@@ -1,3 +1,4 @@
+'use strict';
 var should    = require('should');
 var normalize = require('../normalize-query-statement');
 
