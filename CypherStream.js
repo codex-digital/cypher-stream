@@ -7,26 +7,6 @@ var normalize   = require('./normalize-query-statement');
 
 util.inherits(CypherStream, Readable);
 
-// recursively replace each node with its data property if available
-function extractData(item) {
-  if (!item) {
-    return item;
-  }
-  if (item.data) {
-    return extractData(item.data);
-  }
-  var isArrayOrObject = ['array', 'object'].indexOf(typeof item) !== -1;
-  if (!isArrayOrObject) {
-    // filter only objects and arrays
-    return item;
-  }
-  // recurse on each property
-  Object.keys(item).forEach(function (key) {
-    item[key] = extractData(item[key]);
-  });
-  return item;
-}
-
 function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
   statements = normalize(statements).filter(function (statement) {
@@ -124,7 +104,7 @@ function CypherStream(databaseUrl, statements, options) {
   stream.node('!results[*].data[*].row', function CypherStreamNodeData(result, path, ancestors) {
     var data = {};
     columns.forEach(function (column, i) {
-      data[column] = extractData(result[i]);
+      data[column] = result[i];
     });
     if (callbackStream) {
       callbackStream.write(data);
