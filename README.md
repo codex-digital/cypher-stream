@@ -24,6 +24,27 @@ cypher('match (user:User) return user')
 ;
 ```
 
+## Authorization (Neo4j 2.2+)
+
+``` js
+var cypher = require('cypher-stream')('http://localhost:7474');
+
+cypher.authorize('neo4j', 'password', function (error, result) {
+    if(error){
+        console.error(error)
+    }else{
+        cypher('match (user:User) return user')
+            .on('data', function (result){
+                console.log(result.user.first_name);
+            })
+            .on('end', function() {
+                console.log('all done');
+            })
+        ;
+   }
+});
+```
+
 ## Handling errors
 ``` js
 var cypher = require('cypher-stream')('http://localhost:7474');
