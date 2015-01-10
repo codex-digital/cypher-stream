@@ -8,7 +8,7 @@ var normalize   = require('./normalize-query-statement');
 
 util.inherits(CypherStream, Readable);
 
-function CypherStream(databaseUrl, statements, options) {
+function CypherStream(databaseUrl, statements, options, token) {
   Readable.call(this, { objectMode: true });
   statements = normalize(statements).filter(function (statement) {
     if(statement.commit) {
@@ -31,16 +31,22 @@ function CypherStream(databaseUrl, statements, options) {
   var self    = this;
   var headers = {
     'X-Stream': true,
-    'Accept': 'application/json',
+    'Accept': 'application/json'
   };
   var currentStatement = 0;
   var callbackStream   = null;
 
   var parsedUrl = urlParser.parse(databaseUrl);
 
-  //add HTTP basic auth if needed
-  if (parsedUrl.auth) {
-    headers.Authorization = 'Basic ' + new Buffer(parsedUrl.auth).toString('base64');
+  // check for the token given by the new server
+  if(token == null){
+    //add HTTP basic auth if needed
+    if (parsedUrl.auth) {
+      headers.Authorization = 'Basic ' + new Buffer(parsedUrl.auth).toString('base64');
+    }
+  }else{
+    // add the token given by the neo server
+    headers.Authorization = 'Basic realm=\"Neo4j\" ' + new Buffer(':' + token).toString('base64');
   }
 
   if (databaseUrl[databaseUrl.length - 1] !== '/') {
@@ -64,7 +70,7 @@ function CypherStream(databaseUrl, statements, options) {
     url     : url,
     method  : options.transactionId && options.rollback ? 'DELETE': 'POST',
     headers : headers,
-    body    : { statements: statements },
+    body    : { statements: statements }
   });
 
   stream.node('!.*', function CypherStreamAll(){
