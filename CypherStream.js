@@ -5,6 +5,7 @@ var PassThrough = require('stream').PassThrough;
 var util        = require('util');
 var urlParser   = require('url');
 var normalize   = require('./normalize-query-statement');
+var moduleInfo  = require('./package.json');
 
 util.inherits(CypherStream, Readable);
 
@@ -60,6 +61,7 @@ function CypherStream(databaseUrl, statements, options) {
   var headers = {
     'X-Stream': true,
     'Accept': 'application/json',
+    'User-Agent': 'cypher-stream/' + moduleInfo.version
   };
   var currentStatement = 0;
   var callbackStream   = null;
