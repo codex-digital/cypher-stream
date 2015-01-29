@@ -14,6 +14,8 @@ util.inherits(CypherStream, Readable);
 //   transaction or not.
 // - rollback: true if this transaction should be rolled back. Implies that
 //   `commit` is *not* true, and that a `transactionId` is set.
+// - metadata: true if node & relationship metadata should be returned too,
+//   not just property data. (This translates to Neo4j's REST format.)
 function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
   statements = normalize(statements).filter(function (statement) {
@@ -26,6 +28,10 @@ function CypherStream(databaseUrl, statements, options) {
       options.rollback = true;
       delete statement.rollback;
     }
+    if(statement.metadata) {
+      options.metadata = true;
+      delete statement.metadata;
+    }
     // But only count this statement object if it actually has a statement:
     return !!statement.statement;
   });
@@ -34,6 +40,13 @@ function CypherStream(databaseUrl, statements, options) {
   if(options.rollback && !options.transactionId) {
     this.push(null);
     return this;
+  }
+
+  // if metadata is requested, we need to specify that on each statement:
+  if (options.metadata) {
+    statements.forEach(function (statement) {
+      statement.resultDataContents = ['REST'];
+    });
   }
 
   var columns;
@@ -112,7 +125,8 @@ function CypherStream(databaseUrl, statements, options) {
     columns = c;
   });
 
-  stream.node('!results[*].data[*].row', function CypherStreamNodeData(result) {
+  var dataSelector = '!results[*].data[*].' + (options.metadata ? 'rest' : 'row');
+  stream.node(dataSelector, function CypherStreamNodeData(result) {
     var data = {};
     columns.forEach(function (column, i) {
       data[column] = result[i];

@@ -294,4 +294,27 @@ describe('Transaction', function () {
     });
   });
 
+  it('supports node/rel metadata', function (done) {
+    var results = 0;
+    var transaction = cypher.transaction({metadata: true})
+      .on('data', function (result) {
+        results++;
+        result.should.be.type('object');
+        result.n.should.be.type('object');
+        result.n.data.should.eql({ test: true });
+        result.n.self.should.be.type('string');
+        result.n.metadata.should.be.type('object');
+        result.n.metadata.id.should.be.type('number');
+        result.n.metadata.labels.should.eql(['Test']);
+      })
+      .on('error', shouldNotError)
+      .on('end', function() {
+        results.should.eql(1);
+        done();
+      })
+    ;
+    transaction.write('match (n:Test) return n limit 1');
+    transaction.commit();
+  });
+
 });
