@@ -17,13 +17,17 @@ util.inherits(CypherStream, Readable);
 function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
   statements = normalize(statements).filter(function (statement) {
+    // Support passing in options within statement object:
     if(statement.commit) {
       options.commit = true;
+      delete statement.commit;
     }
     if(statement.rollback) {
       options.rollback = true;
+      delete statement.rollback;
     }
-    return statement.statement;
+    // But only count this statement object if it actually has a statement:
+    return !!statement.statement;
   });
 
   // if a rollback is requested before a transactionId is acquired, we can quit early.
