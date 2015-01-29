@@ -16,6 +16,7 @@ util.inherits(CypherStream, Readable);
 //   `commit` is *not* true, and that a `transactionId` is set.
 // - metadata: true if node & relationship metadata should be returned too,
 //   not just property data. (This translates to Neo4j's REST format.)
+// - headers: dictionary of headers to include in this request.
 function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
   statements = normalize(statements).filter(function (statement) {
@@ -31,6 +32,10 @@ function CypherStream(databaseUrl, statements, options) {
     if(statement.metadata) {
       options.metadata = true;
       delete statement.metadata;
+    }
+    if(statement.headers) {
+      options.headers = statement.headers;
+      delete statement.headers;
     }
     // But only count this statement object if it actually has a statement:
     return !!statement.statement;
@@ -64,6 +69,11 @@ function CypherStream(databaseUrl, statements, options) {
   //add HTTP basic auth if needed
   if (parsedUrl.auth) {
     headers.Authorization = 'Basic ' + new Buffer(parsedUrl.auth).toString('base64');
+  }
+
+  //add any custom HTTP headers
+  for (var key in options.headers || {}) {
+    headers[key] = options.headers[key];
   }
 
   if (databaseUrl[databaseUrl.length - 1] !== '/') {

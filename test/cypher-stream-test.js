@@ -1,6 +1,7 @@
 'use strict';
 var should     = require('should');
 var cypher     = require('../index')('http://localhost:7474');
+var http       = require('http');
 
 function shouldNotError(error) {
   should.not.exist(error);
@@ -226,6 +227,58 @@ describe('Cypher stream', function () {
         done();
       })
     ;
+  });
+
+  it('supports custom headers', function (done) {
+    var headers = {
+      'X-Foo': 'Bar',
+      'x-lorem': 'ipsum'
+    };
+
+    // for this test, use a mock server to test that headers were actually sent,
+    // but then proxy the request to Neo4j afterward.
+    // TODO: use https://github.com/pgte/nock? not sure how to check request
+    // headers though (not just match them).
+    var server = http.createServer(function (req, res) {
+      req.headers['x-foo'].should.equal('Bar');
+      req.headers['x-lorem'].should.equal('ipsum');
+
+      // proxy request to real Neo4j server:
+      req.pipe(http.request({
+        hostname: 'localhost',
+        port: 7474,
+        method: req.method,
+        path: req.url,
+        headers: req.headers
+      }, function (neo4jRes) {
+        res.writeHead(neo4jRes.statusCode, neo4jRes.headers);
+        neo4jRes.pipe(res);
+      }));
+
+      // and shut down the server now (so Node can cleanly exit):
+      server.close();
+    });
+
+    server.listen(0, function () {
+      var url = 'http://localhost:' + server.address().port;
+      var cypher = require('../')(url);
+
+      var results = 0;
+      cypher({
+        statement: 'match (n:Test) return n limit 1',
+        headers: headers
+      })
+        .on('data', function (result) {
+          results++;
+          result.should.eql({ n: { test: true } });
+        })
+        .on('error', shouldNotError)
+        .on('end', function () {
+          results.should.eql(1);
+          done();
+        })
+      ;
+    });
   });
 
 });
