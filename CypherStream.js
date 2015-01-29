@@ -8,6 +8,12 @@ var normalize   = require('./normalize-query-statement');
 
 util.inherits(CypherStream, Readable);
 
+// Options:
+// - transactionId: string ID for the current transaction, if there is one.
+// - commit: true if this query should be committed, whether it's in a
+//   transaction or not.
+// - rollback: true if this transaction should be rolled back. Implies that
+//   `commit` is *not* true, and that a `transactionId` is set.
 function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
   statements = normalize(statements).filter(function (statement) {

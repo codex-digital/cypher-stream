@@ -6,14 +6,16 @@ var normalize    = require('./normalize-query-statement');
 
 util.inherits(TransactionStream, Duplex);
 
+// Options:
+// - debounceTime: number of milliseconds to wait between queries to collect and
+//   batch request them.
+// - batchSize: maximimum number of queries to send at a time.
 function TransactionStream(url, options) {
   Duplex.call(this, { objectMode: true });
 
   var self = this;
   var transactionId;
-  // time to wait between queries to collect and batch request them
   var debounceTime = options && options.debounceTime || 0;
-  // maximimum number of queries to send at a time
   var batchSize    = options && options.batchSize || 10000;
 
   this.commit = function () {
