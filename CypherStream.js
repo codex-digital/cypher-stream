@@ -5,19 +5,41 @@ var PassThrough = require('stream').PassThrough;
 var util        = require('util');
 var urlParser   = require('url');
 var normalize   = require('./normalize-query-statement');
+var moduleInfo  = require('./package.json');
 
 util.inherits(CypherStream, Readable);
 
+// Options:
+// - transactionId: string ID for the current transaction, if there is one.
+// - commit: true if this query should be committed, whether it's in a
+//   transaction or not.
+// - rollback: true if this transaction should be rolled back. Implies that
+//   `commit` is *not* true, and that a `transactionId` is set.
+// - metadata: true if node & relationship metadata should be returned too,
+//   not just property data. (This translates to Neo4j's REST format.)
+// - headers: dictionary of headers to include in this request.
 function CypherStream(databaseUrl, statements, options) {
   Readable.call(this, { objectMode: true });
   statements = normalize(statements).filter(function (statement) {
+    // Support passing in options within statement object:
     if(statement.commit) {
       options.commit = true;
+      delete statement.commit;
     }
     if(statement.rollback) {
       options.rollback = true;
+      delete statement.rollback;
     }
-    return statement.statement;
+    if(statement.metadata) {
+      options.metadata = true;
+      delete statement.metadata;
+    }
+    if(statement.headers) {
+      options.headers = statement.headers;
+      delete statement.headers;
+    }
+    // But only count this statement object if it actually has a statement:
+    return !!statement.statement;
   });
 
   // if a rollback is requested before a transactionId is acquired, we can quit early.
@@ -26,12 +48,20 @@ function CypherStream(databaseUrl, statements, options) {
     return this;
   }
 
+  // if metadata is requested, we need to specify that on each statement:
+  if (options.metadata) {
+    statements.forEach(function (statement) {
+      statement.resultDataContents = ['REST'];
+    });
+  }
+
   var columns;
   var transactionTimeout;
   var self    = this;
   var headers = {
     'X-Stream': true,
     'Accept': 'application/json',
+    'User-Agent': 'cypher-stream/' + moduleInfo.version
   };
   var currentStatement = 0;
   var callbackStream   = null;
@@ -41,6 +71,11 @@ function CypherStream(databaseUrl, statements, options) {
   //add HTTP basic auth if needed
   if (parsedUrl.auth) {
     headers.Authorization = 'Basic ' + new Buffer(parsedUrl.auth).toString('base64');
+  }
+
+  //add any custom HTTP headers
+  for (var key in options.headers || {}) {
+    headers[key] = options.headers[key];
   }
 
   if (databaseUrl[databaseUrl.length - 1] !== '/') {
@@ -102,7 +137,8 @@ function CypherStream(databaseUrl, statements, options) {
     columns = c;
   });
 
-  stream.node('!results[*].data[*].row', function CypherStreamNodeData(result) {
+  var dataSelector = '!results[*].data[*].' + (options.metadata ? 'rest' : 'row');
+  stream.node(dataSelector, function CypherStreamNodeData(result) {
     var data = {};
     columns.forEach(function (column, i) {
       data[column] = result[i];

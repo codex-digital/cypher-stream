@@ -6,15 +6,20 @@ var normalize    = require('./normalize-query-statement');
 
 util.inherits(TransactionStream, Duplex);
 
+// Options:
+// - debounceTime: number of milliseconds to wait between queries to collect and
+//   batch request them.
+// - batchSize: maximimum number of queries to send at a time.
+// - metadata: true if node & relationship metadata should be returned too,
+//   not just property data. (This translates to Neo4j's REST format.)
 function TransactionStream(url, options) {
   Duplex.call(this, { objectMode: true });
 
   var self = this;
   var transactionId;
-  // time to wait between queries to collect and batch request them
   var debounceTime = options && options.debounceTime || 0;
-  // maximimum number of queries to send at a time
   var batchSize    = options && options.batchSize || 10000;
+  var metadata     = options && options.metadata;
 
   this.commit = function () {
     return self.write({ commit: true });
@@ -27,7 +32,7 @@ function TransactionStream(url, options) {
   function processChunk(input, encoding, callback) {
     var statements = normalize(input);
     var callbacks  = [callback];
-    var options    = {};
+    var options    = {metadata: metadata};
     if (input.commit) {
       options.commit = true;
     }
