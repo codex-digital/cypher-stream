@@ -16,77 +16,66 @@ function TransactionStream(url, options) {
   Duplex.call(this, { objectMode: true });
 
   var self = this;
+  var buffer = [];
   var transactionId;
+  var debounce;
   var debounceTime = options && options.debounceTime || 0;
   var batchSize    = options && options.batchSize || 10000;
   var metadata     = options && options.metadata;
 
-  this.commit = function () {
+  this.commit = function commitAlias() {
     return self.write({ commit: true });
   };
 
-  this.rollback = function () {
+  this.rollback = function rollbackAlias() {
     return self.write({ rollback: true });
   };
 
-  function processChunk(input, encoding, callback) {
-    var statements = normalize(input);
-    var callbacks  = [callback];
-    var options    = {metadata: metadata};
-    if (input.commit) {
-      options.commit = true;
+  function handle() {
+    var statements = [];
+    var callbacks  = [];
+    var options    = {};
+
+    if(metadata) {
+      options.metadata = metadata;
     }
-    if (input.rollback) {
-      options.rollback = true;
-    }
+
     if (transactionId) {
       options.transactionId = transactionId;
     }
-    // combine any buffered queries
-    var buffer = self._writableState.buffer;
-    while (buffer.length && statements.length < batchSize && !options.rollback) {
-      var buffered = buffer.shift();
-      var bufferedStatements = normalize(buffered.chunk);
-      if (bufferedStatements) {
-        statements = statements.concat(bufferedStatements);
-      }
-      if (buffered.chunk.commit) {
-        options.commit = true;
-      }
-      if (buffered.chunk.rollback) {
-        options.rollback = true;
-      }
-      callbacks.push(buffered.callback);
+    while(buffer.length) {
+      var input = buffer.shift();
+      statements = statements.concat(normalize(input));
+      if (input.commit)   { options.commit   = true; }
+      if (input.rollback) { options.rollback = true; }
     }
 
+    // console.log('new CypherStream', url, statements, options);
     var stream = new CypherStream(url, statements, options);
 
-    stream.on('transactionId', function (txId) {
+    stream.on('transactionId', function transactionIdHandler(txId) {
       if (!transactionId) {
         transactionId = txId;
       }
     });
 
-    stream.on('expires', function (date) {
+    stream.on('expires', function expiresHandler(date) {
       self.emit('expires', date);
     });
 
-    stream.on('transactionExpired', function () {
+    stream.on('transactionExpired', function transactionExpiredHandler() {
       self.emit('expired');
     });
 
-    stream.on('data', function (data) {
+    stream.on('data', function dataHandler(data) {
       self.push(data);
     });
 
-    stream.on('error', function (errors) {
+    stream.on('error', function errorHandler(errors) {
       self.emit('error', errors);
     });
 
-    stream.on('end', function () {
-      callbacks.forEach(function (callback) {
-        callback();
-      });
+    stream.on('end', function endHandler() {
       if(options.rollback || options.commit) {
         self.push(null);
       }
@@ -94,10 +83,16 @@ function TransactionStream(url, options) {
 
   }
 
-  this._write = function (input, encoding, done) {
-    setTimeout(function () {
-      processChunk(input, encoding, done);
-    }, debounceTime);
+  this._write = function (chunk, encoding, callback) {
+    buffer.push(chunk);
+    if(debounce) { clearTimeout(debounce); }
+    // debounce to allow writes to buffer
+    if(buffer.length === batchSize) {
+      handle();
+    } else {
+      debounce = setTimeout(handle, debounceTime);
+    }
+    callback();
   };
   this._read = function () { };
 

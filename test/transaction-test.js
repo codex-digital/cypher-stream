@@ -151,6 +151,7 @@ describe('Transaction', function () {
 
   it('can rollback even if the queries have had time to send', function (done) {
     var results = 0;
+    var timeout = process.env.TRAVIS_CI ? 1000 : 50;
     var transaction = cypher.transaction()
       .on('data', function () {
         results++;
@@ -171,7 +172,7 @@ describe('Transaction', function () {
     transaction.write('match (n:Test) set n.bar = "baz" return n');
     setTimeout(function () {
       transaction.rollback();
-    }, 50);
+    }, timeout);
   });
 
   it('works with parameters', function (done) {
@@ -297,7 +298,7 @@ describe('Transaction', function () {
 
   it('supports node/rel metadata', function (done) {
     var results = 0;
-    var transaction = cypher.transaction({metadata: true})
+    var transaction = cypher.transaction({ metadata: true })
       .on('data', function (result) {
         results++;
         result.should.be.type('object');
