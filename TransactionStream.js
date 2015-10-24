@@ -1,100 +1,95 @@
 'use strict';
-var Duplex       = require('stream').Duplex;
-var util         = require('util');
-var CypherStream = require('./CypherStream');
-var normalize    = require('./normalize-query-statement');
+var $                  = require('highland');
+var CypherStream       = require('./CypherStream');
+var Duplex             = require('stream').Duplex;
+var normalize          = require('./util/normalize-query-statement');
+// var R                  = require('ramda');
 
-util.inherits(TransactionStream, Duplex);
+// var tap = R.tap;
+// var log = tap(console.log.bind(console));
 
-// Options:
-// - debounceTime: number of milliseconds to wait between queries to collect and
-//   batch request them.
-// - batchSize: maximimum number of queries to send at a time.
-// - metadata: true if node & relationship metadata should be returned too,
-//   not just property data. (This translates to Neo4j's REST format.)
-function TransactionStream(url, options) {
-  Duplex.call(this, { objectMode: true });
+class TransactionStream extends Duplex {
+  constructor(session) {
+    super({ objectMode: true });
 
-  var self = this;
-  var buffer = [];
-  var transactionId;
-  var debounce;
-  var debounceTime = options && options.debounceTime || 0;
-  var batchSize    = options && options.batchSize || 10000;
-  var metadata     = options && options.metadata;
+    this.session    = session;
+    this.tx         = session.beginTransaction();
+    this.statements = $();
 
-  this.commit = function commitAlias() {
-    return self.write({ commit: true });
-  };
-
-  this.rollback = function rollbackAlias() {
-    return self.write({ rollback: true });
-  };
-
-  function handle() {
-    var statements = [];
-    var callbacks  = [];
-    var options    = {};
-
-    if(metadata) {
-      options.metadata = metadata;
-    }
-
-    if (transactionId) {
-      options.transactionId = transactionId;
-    }
-    while(buffer.length) {
-      var input = buffer.shift();
-      statements = statements.concat(normalize(input));
-      if (input.commit)   { options.commit   = true; }
-      if (input.rollback) { options.rollback = true; }
-    }
-
-    // console.log('new CypherStream', url, statements, options);
-    var stream = new CypherStream(url, statements, options);
-
-    stream.on('transactionId', function transactionIdHandler(txId) {
-      if (!transactionId) {
-        transactionId = txId;
+    this.writes = this.statements.fork()
+    .flatMap(normalize)
+    .map(statement => {
+      if(statement.commit) {
+        this.commit();
       }
+      return $(new CypherStream(this.tx, statement));
+    })
+    ;
+
+    this.results = this.writes.fork()
+    .flatten()
+    .doto(x => this.push(x))
+    .errors(error => this.emit('error', error))
+    ;
+
+    this.writes.resume();
+    this.results.resume();
+  }
+
+  _write(chunk, encoding, callback) {
+    if(this.rolledBack) {
+      throw new Error('Cannot write after rollback.');
+    }
+    if(this.committed) {
+      throw new Error('Cannot write after commit.');
+    }
+    this.statements.write(chunk);
+    callback();
+  }
+
+  _read() { }
+
+  commit() {
+    if(this.committed) {
+      return;
+    }
+    this.committed = true;
+
+    this.writes.on('end', () => {
+      this.tx.commit()
+      .subscribe({
+        onCompleted: () => {
+          this.emit('comitted');
+          this.push(null);
+        },
+        onError: error => {
+          this.emit('error', error);
+          this.push(null);
+        }
+      });
     });
 
-    stream.on('expires', function expiresHandler(date) {
-      self.emit('expires', date);
-    });
+    this.statements.end();
+  }
 
-    stream.on('transactionExpired', function transactionExpiredHandler() {
-      self.emit('expired');
-    });
-
-    stream.on('data', function dataHandler(data) {
-      self.push(data);
-    });
-
-    stream.on('error', function errorHandler(errors) {
-      self.emit('error', errors);
-    });
-
-    stream.on('end', function endHandler() {
-      if(options.rollback || options.commit) {
-        self.push(null);
+  rollback() {
+    if(this.rolledBack) {
+      return;
+    }
+    this.rolledBack = true;
+    this.statements.end();
+    this.tx.rollback()
+    .subscribe({
+      onCompleted: () => {
+        this.push(null);
+      },
+      onError: error => {
+        this.emit('error', error);
+        this.push(null);
       }
     });
 
   }
-
-  this._write = function (chunk, encoding, callback) {
-    buffer.push(chunk);
-    if(debounce) { clearTimeout(debounce); }
-    // debounce to allow writes to buffer
-    if(buffer.length === batchSize) {
-      handle();
-    } else {
-      debounce = setTimeout(handle, debounceTime);
-    }
-    callback();
-  };
-  this._read = function () { };
 
 }
 

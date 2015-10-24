@@ -1,6 +1,6 @@
 'use strict';
 var should    = require('should');
-var normalize = require('../normalize-query-statement');
+var normalize = require('../util/normalize-query-statement');
 
 describe('Query statement normalization', function () {
   var query = 'match (n) return n';

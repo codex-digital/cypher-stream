@@ -1,13 +1,13 @@
 'use strict';
-var should     = require('should');
-var cypher     = require('../index')('http://localhost:7474');
-var http       = require('http');
+var should = require('should');
+var cypher = require('../index')('bolt://0.0.0.0', 'neo4j', 'neo4j1');
 
 function shouldNotError(error) {
   should.not.exist(error);
 }
 
 describe('Transaction', function () {
+
   var testRecordsToCreate = 10;
   before(function (done){
     // Travis CI is slow.  Give him more time.
@@ -15,64 +15,197 @@ describe('Transaction', function () {
       this.timeout(5000);
     }
     cypher('FOREACH (x IN range(1,'+testRecordsToCreate+') | CREATE(:Test {test: true}))')
-      .on('end', done)
-      .on('error', shouldNotError)
-      .resume();
+    .on('end', done)
+    .on('error', shouldNotError)
+    .resume();
   });
-  after(function (done){
+
+  after(done =>
     cypher('MATCH (n:Test) DELETE n')
-      .on('end', done)
-      .on('error', shouldNotError)
-      .resume();
+    .on('end', done)
+    .on('error', shouldNotError)
+    .resume()
+  );
+
+  it('cannot write after commit', done => {
+    var tx = cypher.transaction();
+    tx.commit();
+    try {
+      tx.write('match (n:Test) return n limit 1');
+    } catch (error) {
+      should.equal(
+        'Error: Cannot write after commit.',
+        String(error)
+      );
+    }
+    tx.on('end', done);
+    tx.resume();
+  });
+
+  it('cannot write after commit', done => {
+    var tx = cypher.transaction();
+    tx.commit();
+    tx.on('error', error =>
+      should.equal(
+        'Error: Cannot write after commit.',
+        String(error)
+      )
+    );
+    tx.on('end', done);
+    tx.resume();
   });
 
   it('works', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(1);
-        done();
-      })
+    .on('data', result => {
+      results++;
+      result.should.eql({ n: { test: true } });
+    })
+    .on('error', shouldNotError)
+    .on('end', function() {
+      results.should.eql(1);
+      done();
+    })
     ;
     transaction.write('match (n:Test) return n limit 1');
     transaction.commit();
+  });
+
+  context('data written within a transaction', () => {
+    var tx;
+    beforeEach(() => {
+      tx = cypher.transaction();
+      tx.write('create (n:NewItem { foo: "bar"}) return n');
+    });
+    afterEach(done =>
+      cypher(`
+        MATCH (n:NewItem)
+        DETACH DELETE n
+      `)
+      .on('end', done)
+      .resume()
+    );
+
+    it('is unavailable to parallel transactions', done => {
+      var tx2    = cypher.transaction();
+      var called = false;
+      tx.on('data', () => {
+        tx2.write('MATCH (n:NewItem) return n');
+        tx2.on('data', () => called = true);
+        tx2.on('end',  () => {
+          should.equal(false, called);
+          tx.rollback();
+        });
+        tx2.commit();
+      });
+
+      tx.on('end', done);
+
+      tx2.resume();
+      tx.resume();
+
+    });
+
+    // TODO: look into this.
+    it.skip('Uncaught Read operations are not allowed for `NONE` transactions', done => {
+      var tx2    = cypher.transaction();
+      var called = false;
+      tx.on('data', () => {
+        console.log('here');
+        tx2.write('MATCH (n:NewItem) return n');
+        tx2.on('data', () => called = true);
+        tx2.on('end',  () => should.equal(false, called));
+      });
+
+      tx2.on('end', done);
+
+      tx.on('error', x => console.log(x));
+      tx2.on('error', x => console.log(x));
+
+      tx2.resume();
+      tx2.commit();
+      tx.resume();
+      // tx.commit();
+    });
+
+    it('is available after commit', done => {
+      var tx = cypher.transaction();
+      var numToCreate = 10;
+      for(var i = 0; i < numToCreate; i++) {
+        tx.write('create (n:NewItem { foo: "bar"}) return n');
+      }
+
+      var numResults = 0;
+
+      tx.on('end', () => {
+        cypher('match (n:NewItem) return n')
+        .on('data', data => {
+          should.equal('bar', data.n.foo);
+          numResults++;
+        })
+        .on('end', () => {
+          should.equal(numToCreate, numResults);
+          done();
+        });
+      });
+
+      tx.commit();
+      tx.resume();
+
+    });
+
+    it('is unavailable outside the transaction before commit', done => {
+      var tx = cypher.transaction();
+      tx.write('create (n:NewItem { foo: "bar"}) return n');
+
+      tx.on('data', () => {
+        var called = false;
+        cypher('match (n:NewItem) return n')
+        .on('data', () => called = true)
+        .on('end',  () => {
+          should.equal(false, called);
+          tx.commit();
+        });
+      });
+
+      tx.on('end', done);
+      tx.resume();
+    });
+
+
   });
 
   it('handles multiple writes', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(2);
-        done();
-      })
+    .on('data', function (result) {
+      results++;
+      result.should.eql({ n: { test: true } });
+    })
+    .on('error', shouldNotError)
+    .on('end', function() {
+      results.should.eql(2);
+      done();
+    })
     ;
     transaction.write('match (n:Test) return n limit 1');
     transaction.write('match (n:Test) return n limit 1');
     transaction.commit();
   });
 
-  it('handles accepts a variety of statement formats', function (done) {
+  it('accepts a variety of statement formats', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(6);
-        done();
-      })
+    .on('data', function (result) {
+      results++;
+      result.should.eql({ n: { test: true } });
+    })
+    .on('error', shouldNotError)
+    .on('end', function() {
+      results.should.eql(6);
+      done();
+    })
     ;
     var query = 'match (n:Test) return n limit 1';
     transaction.write(query);
@@ -85,64 +218,37 @@ describe('Transaction', function () {
   it('handles write and commit', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(1);
-        done();
-      })
+    .on('data', function (result) {
+      results++;
+      result.should.eql({ n: { test: true } });
+    })
+    .on('error', shouldNotError)
+    .on('end', function() {
+      results.should.eql(1);
+      done();
+    })
     ;
     transaction.write({ statement: 'match (n:Test) return n limit 1', commit: true });
   });
 
-  it('automatically batches queries for performance', function (done) {
-    // results may vary, depending on your system.
-    // tests on macbook pro were around ~100ms
-    // Travis CI is slow.  Give him more time.
-    if (process.env.TRAVIS_CI) {
-      this.timeout(5000);
-    }
-    var results = 0;
-    var queriesToRun = 1000;
-    var queriesWritten = 0;
-    var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(queriesToRun);
-        done();
-      })
-    ;
-    while (queriesWritten++ < queriesToRun) {
-      transaction.write('match (n:Test) return n limit 1');
-    }
-    transaction.commit();
-  });
-
-  it('can eagerly rollback if queries are still buffered', function (done) {
+  it.skip('can eagerly rollback if queries are still buffered', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function () {
-        results.should.eql(0);
-        cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
-          .on('data', function (result) {
-            result.count.should.equal(0);
-            done();
-          })
-          .on('error', shouldNotError)
-        ;
-      })
+    .on('data', function (result) {
+      results++;
+      result.should.eql({ n: { test: true } });
+    })
+    .on('error', shouldNotError)
+    .on('end', function () {
+      results.should.eql(0);
+      cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
+        .on('data', result => {
+          result.count.should.equal(0);
+        })
+        .on('end', done)
+        .on('error', shouldNotError)
+      ;
+    })
     ;
     transaction.write('match (n:Test) set n.foo = "bar" return n');
     transaction.write('match (n:Test) set n.bar = "baz" return n');
@@ -153,20 +259,20 @@ describe('Transaction', function () {
     var results = 0;
     var timeout = process.env.TRAVIS_CI ? 1000 : 50;
     var transaction = cypher.transaction()
-      .on('data', function () {
-        results++;
-      })
-      .on('error', shouldNotError)
-      .on('end', function () {
-        results.should.eql(testRecordsToCreate*2);
-        cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
-          .on('data', function (result) {
-            result.count.should.equal(0);
-            done();
-          })
-          .on('error', shouldNotError)
-        ;
-      })
+    .on('data', function () {
+      results++;
+    })
+    .on('error', shouldNotError)
+    .on('end', function () {
+      results.should.eql(testRecordsToCreate*2);
+      cypher('match (n:Test) where n.foo = "bar" or n.bar = "baz" return count(n) as count')
+        .on('data', function (result) {
+          result.count.should.equal(0);
+          done();
+        })
+        .on('error', shouldNotError)
+      ;
+    })
     ;
     transaction.write('match (n:Test) set n.foo = "bar" return n');
     transaction.write('match (n:Test) set n.bar = "baz" return n');
@@ -178,15 +284,15 @@ describe('Transaction', function () {
   it('works with parameters', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
-      .on('data', function (result) {
-        results++;
-        result.should.eql({ n: { test: true } });
-      })
-      .on('error', shouldNotError)
-      .on('end', function () {
-        results.should.eql(1);
-        done();
-      })
+    .on('data', function (result) {
+      results++;
+      result.should.eql({ n: { test: true } });
+    })
+    .on('error', shouldNotError)
+    .on('end', function () {
+      results.should.eql(1);
+      done();
+    })
     ;
     transaction.write({
       statement  : 'match (n:Test) where n.test={test} return n limit 1',
@@ -195,17 +301,17 @@ describe('Transaction', function () {
     });
   });
 
-  it('emits expiration', function (done) {
+  it.skip('emits expiration', function (done) {
     var called = false;
     var transaction = cypher.transaction()
-      .on('error', shouldNotError)
-      .on('expires', function () {
-        called = true;
-      })
-      .on('end', function () {
-        called.should.equal(true);
-        done();
-      })
+    .on('error', shouldNotError)
+    .on('expires', function () {
+      called = true;
+    })
+    .on('end', function () {
+      called.should.equal(true);
+      done();
+    })
     ;
 
     transaction.resume();
@@ -228,14 +334,6 @@ describe('Transaction', function () {
     var transaction   = cypher.transaction();
 
     this.timeout((serverTimeout+10)*1000);
-
-    transaction.on('expires', function () {
-      expiresCalled = true;
-    });
-
-    transaction.on('expired', function () {
-      expiredCalled = true;
-    });
 
     transaction.on('error', function (error) {
       errorCalled   = true;
@@ -272,13 +370,13 @@ describe('Transaction', function () {
     var query   = 'match (n:Test) return n limit 2';
     function callback(stream) {
       stream
-        .on('data', function (result) {
-          result.should.eql({ n: { test: true } });
-          results++;
-        })
-        .on('end', function () {
-          ended++;
-        })
+      .on('data', function (result) {
+        result.should.eql({ n: { test: true } });
+        results++;
+      })
+      .on('end', function () {
+        ended++;
+      })
       ;
       calls++;
     }
@@ -293,85 +391,6 @@ describe('Transaction', function () {
       ended.should.equal(2);
       results.should.equal(4);
       done();
-    });
-  });
-
-  it('supports node/rel metadata', function (done) {
-    var results = 0;
-    var transaction = cypher.transaction({ metadata: true })
-      .on('data', function (result) {
-        results++;
-        result.should.be.type('object');
-        result.n.should.be.type('object');
-        result.n.data.should.eql({ test: true });
-        result.n.self.should.be.type('string');
-        result.n.metadata.should.be.type('object');
-        result.n.metadata.id.should.be.type('number');
-        result.n.metadata.labels.should.eql(['Test']);
-      })
-      .on('error', shouldNotError)
-      .on('end', function() {
-        results.should.eql(1);
-        done();
-      })
-    ;
-    transaction.write('match (n:Test) return n limit 1');
-    transaction.commit();
-  });
-
-  // NOTE: This support is basic -- assumes only one query per request.
-  // https://github.com/brian-gates/cypher-stream/issues/10#issuecomment-72090757
-  it('supports custom headers', function (done) {
-    var headers = {
-      'X-Foo': 'Bar',
-      'x-lorem': 'ipsum'
-    };
-
-    // for this test, use a mock server to test that headers were actually sent,
-    // but then proxy the request to Neo4j afterward.
-    // TODO: use https://github.com/pgte/nock? not sure how to check request
-    // headers though (not just match them).
-    var server = http.createServer(function (req, res) {
-      req.headers['x-foo'].should.equal('Bar');
-      req.headers['x-lorem'].should.equal('ipsum');
-
-      // proxy request to real Neo4j server:
-      req.pipe(http.request({
-        hostname: 'localhost',
-        port: 7474,
-        method: req.method,
-        path: req.url,
-        headers: req.headers
-      }, function (neo4jRes) {
-        res.writeHead(neo4jRes.statusCode, neo4jRes.headers);
-        neo4jRes.pipe(res);
-      }));
-
-      // and shut down the server now (so Node can cleanly exit):
-      server.close();
-    });
-
-    server.listen(0, function () {
-      var url = 'http://localhost:' + server.address().port;
-      var cypher = require('../')(url);
-
-      var results = 0;
-      var transaction = cypher.transaction()
-        .on('data', function (result) {
-          results++;
-          result.should.eql({ n: { test: true } });
-        })
-        .on('error', shouldNotError)
-        .on('end', function () {
-          results.should.eql(1);
-          done();
-        })
-      ;
-      transaction.write({
-        statement: 'match (n:Test) return n limit 1',
-        headers: headers
-      });
-      transaction.commit();
     });
   });
 

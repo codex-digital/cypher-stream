@@ -1,0 +1,22 @@
+#!/bin/bash -eu
+
+ELAPSED=0
+
+URL=http://0.0.0.0:7474
+
+while true; do
+  UP=0
+  if curl -s -I $URL | grep -q "200 OK" ; then
+    UP=true
+  fi
+
+  if [ "$UP" == true ]; then
+    echo "$URL responded 200 OK after $ELAPSED seconds"
+    exit 0
+  else
+    echo "Waiting for $URL 200 OK - $ELAPSED seconds elapsed"
+    sleep 1
+    ELAPSED=$((ELAPSED + 1))
+    continue
+  fi
+done

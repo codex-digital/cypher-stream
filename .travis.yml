@@ -1,16 +1,23 @@
 language: node_js
-sudo: false
+
 node_js:
-  - "0.10"
-  - "0.11"
-  - "0.12"
   - "4"
-  - "iojs"
+
 env:
-    - NEO4J_VERSION="2.1.5" TRAVIS_CI=true
+  - TRAVIS_CI=true
+
+install:
+  - npm install
+
+services:
+  - docker
+
 before_install:
-    # install Neo4j:
-    - wget dist.neo4j.org/neo4j-community-$NEO4J_VERSION-unix.tar.gz
-    - tar -xzf neo4j-community-$NEO4J_VERSION-unix.tar.gz
-    - neo4j-community-$NEO4J_VERSION/bin/neo4j start
-script: make coveralls
+  - mkdir -p ~/.neo4j/ && touch ~/.neo4j/known_hosts
+  - docker run -d --publish=7474:7474 --publish=7687:7687 --env=NEO4J_AUTH=none neo4j:3.0.3-enterprise
+  - sleep 15
+  - curl localhost:7474
+
+script:
+  - npm test
+  - make coveralls
