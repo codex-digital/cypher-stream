@@ -77,7 +77,11 @@ class TransactionStream extends Duplex {
       return;
     }
     this.rolledBack = true;
+
     this.statements.end();
+    this.results.end();
+    this.writes.end();
+
     this.tx.rollback()
     .subscribe({
       onCompleted: () => {

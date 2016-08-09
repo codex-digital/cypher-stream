@@ -1,6 +1,6 @@
 'use strict';
 var should = require('should');
-var cypher = require('../index')('bolt://0.0.0.0', 'neo4j', 'neo4j1');
+var cypher = require('../index')('bolt://0.0.0.0');
 
 function shouldNotError(error) {
   should.not.exist(error);
@@ -27,7 +27,7 @@ describe('Transaction', function () {
     .resume()
   );
 
-  it('cannot write after commit', done => {
+  it('cannot write after commit (throw)', done => {
     var tx = cypher.transaction();
     tx.commit();
     try {
@@ -42,7 +42,7 @@ describe('Transaction', function () {
     tx.resume();
   });
 
-  it('cannot write after commit', done => {
+  it('cannot write after commit (emit)', done => {
     var tx = cypher.transaction();
     tx.commit();
     tx.on('error', error =>
@@ -73,6 +73,7 @@ describe('Transaction', function () {
   });
 
   context('data written within a transaction', () => {
+
     var tx;
     beforeEach(() => {
       tx = cypher.transaction();
@@ -111,6 +112,7 @@ describe('Transaction', function () {
     it.skip('Uncaught Read operations are not allowed for `NONE` transactions', done => {
       var tx2    = cypher.transaction();
       var called = false;
+
       tx.on('data', () => {
         console.log('here');
         tx2.write('MATCH (n:NewItem) return n');
@@ -119,9 +121,6 @@ describe('Transaction', function () {
       });
 
       tx2.on('end', done);
-
-      tx.on('error', x => console.log(x));
-      tx2.on('error', x => console.log(x));
 
       tx2.resume();
       tx2.commit();
@@ -172,7 +171,6 @@ describe('Transaction', function () {
       tx.on('end', done);
       tx.resume();
     });
-
 
   });
 
@@ -231,7 +229,7 @@ describe('Transaction', function () {
     transaction.write({ statement: 'match (n:Test) return n limit 1', commit: true });
   });
 
-  it.skip('can eagerly rollback if queries are still buffered', function (done) {
+  it('can eagerly rollback if queries are still buffered', function (done) {
     var results = 0;
     var transaction = cypher.transaction()
     .on('data', function (result) {
@@ -299,68 +297,6 @@ describe('Transaction', function () {
       parameters : { test: true },
       commit     : true,
     });
-  });
-
-  it.skip('emits expiration', function (done) {
-    var called = false;
-    var transaction = cypher.transaction()
-    .on('error', shouldNotError)
-    .on('expires', function () {
-      called = true;
-    })
-    .on('end', function () {
-      called.should.equal(true);
-      done();
-    })
-    ;
-
-    transaction.resume();
-
-    transaction.write('match (n:Test) return n limit 1');
-
-    setTimeout(function() {
-      transaction.write('match (n:Test) return n limit 1');
-      transaction.commit();
-    }, 0);
-
-  });
-
-  it.skip('handles expiration', function (done) {
-    // set this equal to neo4j-server.properties -> org.neo4j.server.transaction.timeout (default 60)
-    var serverTimeout = 60;
-    var errorCalled   = false;
-    var expiresCalled = false;
-    var expiredCalled = false;
-    var transaction   = cypher.transaction();
-
-    this.timeout((serverTimeout+10)*1000);
-
-    transaction.on('error', function (error) {
-      errorCalled   = true;
-      error.neo4j.should.eql({
-        statusCode: 400,
-        errors: [{
-          code    : 'Neo.ClientError.Transaction.UnknownId',
-          message : 'Unrecognized transaction id. Transaction may have timed out and been rolled back.'
-        }],
-        results: []
-      });
-    });
-
-    transaction.on('end', function () {
-      errorCalled  .should.equal(true);
-      expiresCalled.should.equal(true);
-      expiredCalled.should.equal(true);
-      done();
-    });
-
-    transaction.resume();
-    transaction.write('match (n:Test) return n limit 1');
-
-    setTimeout(function() {
-      transaction.write('match (n:Test) return n limit 1');
-      transaction.commit();
-    }, ((serverTimeout+5)*1000));
   });
 
   it('calls statement callbacks', function (done) {

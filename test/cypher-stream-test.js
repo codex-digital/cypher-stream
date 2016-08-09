@@ -1,5 +1,5 @@
 'use strict';
-var cypher = require('../index')('bolt://0.0.0.0', 'neo4j', 'neo4j1');
+var cypher = require('../index')('bolt://0.0.0.0');
 var should = require('should');
 var R      = require('ramda');
 
@@ -115,15 +115,6 @@ describe('Cypher stream', () => {
     .on('data', result => result.should.eql({ 'null': null }))
     .on('error', shouldNotError)
     .on('end', done)
-    ;
-  });
-
-  it.skip('works with basic http auth', done => {
-    var cyp = require('../index')('http://neo:cypher@localhost:7474/');
-    cyp('match (n:Test) return n limit 1')
-    .on('error', shouldNotError)
-    .on('end', done)
-    .resume()
     ;
   });
 

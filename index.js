@@ -3,7 +3,6 @@ var CypherStream      = require('./CypherStream');
 var neo4j             = require('neo4j-driver').v1;
 var R                 = require('ramda');
 var TransactionStream = require('./TransactionStream');
-var $ = require('highland');
 
 var all     = R.all;
 var compose = R.compose;
@@ -11,8 +10,7 @@ var cond    = R.cond;
 var isNil   = R.isNil;
 var not     = R.not;
 var unapply = R.unapply;
-var always = R.always;
-
+var always  = R.always;
 
 var notNil    = compose(not, isNil);
 
@@ -22,9 +20,10 @@ var auth = cond([
   [R.T,                  always(undefined)],
 ]);
 
-module.exports = function Connection(url, user, pass) {
+module.exports = function Connection(url, options) {
+  options = options || {};
 
-  var driver  = neo4j.driver(url || 'bolt://localhost', auth(user, pass));
+  var driver  = neo4j.driver(url || 'bolt://localhost', auth(options.username, options.password));
 
   var factory = function CypherStreamFactory(statement, parameters) {
     if (parameters) {
