@@ -4,15 +4,35 @@
 
 Neo4j cypher queries as node object streams.
 
+## 1.0.0-alpha
+
+1.0.0-alpha is Powered by Bolt™. Updated documentation is forthcoming.  For the brave, check the source, tests, and go wild.
+
+The API is largely unchanged, with the exception of authentication and some configuration options which no longer make sense in the Bolt world (i.e. http headers).
+
+Performance should be significantly improved, given that the library no longer has to stream-parse HTTP JSON responses.
+
+TODO:
+
+  * Documentation / Migration guide
+  * Facilitate access to underlying Neo4j objects
+  * Benchmark
+
 ## Installation
 ```
 npm install cypher-stream
 ```
 
+Or, for Bolt
+
+```
+npm install cypher-stream@1.0.0-alpha
+```
+
 ## Basic usage
 
 ``` js
-var cypher = require('cypher-stream')('http://localhost:7474');
+var cypher = require('cypher-stream')('bolt://localhost', 'username', 'password');
 
 cypher('match (user:User) return user')
   .on('data', function (result){
@@ -26,7 +46,7 @@ cypher('match (user:User) return user')
 
 ## Handling errors
 ``` js
-var cypher = require('cypher-stream')('http://localhost:7474');
+var cypher = require('cypher-stream')('bolt://localhost', 'username', 'password');
 var should = require('should');
 it('handles errors', function (done) {
   var errored = false;
@@ -90,7 +110,6 @@ transaction.write([
 
 ### Committing or rolling back
 
-
 ``` js
 transaction.commit();
 transaction.rollback();
@@ -106,24 +125,6 @@ transaction.write({
   commit     : true
 });
 
-```
-
-### Query Batching
-
-Transactions automatically batch queries for significant performance gains.  Try the following:
-
-``` js
-var queriesToRun = 10000;
-var queriesWritten = 0;
-var transaction = cypher.transaction()
-  .on('data', function (result) {
-    console.log(result);
-  })
-;
-while (queriesWritten++ < queriesToRun) {
-  transaction.write('match (n:Test) return n limit 1');
-}
-transaction.commit();
 ```
 
 ## Stream per statement
