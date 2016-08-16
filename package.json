@@ -24,13 +24,13 @@
   "dependencies": {
     "highland": "^2.9.0",
     "neo4j-driver": "^1.0.3",
-    "ramda": "^0.21.0"
+    "ramda": "^0.22.1"
   },
   "devDependencies": {
     "coveralls": "^2.11.2",
-    "mocha-lcov-reporter": "0.0.1",
-    "mocha": "~1.17.1",
-    "should": "~3.1.3",
-    "istanbul": "^0.3.2"
+    "mocha-lcov-reporter": "1.2.0",
+    "mocha": "~3.0.2",
+    "should": "~11.0.0",
+    "istanbul": "^0.4.4"
   }
 }
