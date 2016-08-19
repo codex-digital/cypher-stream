@@ -330,4 +330,22 @@ describe('Transaction', function () {
     });
   });
 
+  it.only('can return Neo4j data types', done => {
+    var tx = cypher.transaction({ returnType: 'neo4j' });
+
+    tx.on('data', data => {
+      data.should.have.properties([
+        '_fields',
+        'keys',
+        'length',
+        '_fieldLookup',
+      ]);
+    });
+
+    tx.write('MATCH (n:Test) return n LIMIT 1');
+    tx.commit();
+    tx.resume();
+    tx.on('end', done);
+  });
+
 });

@@ -9,7 +9,7 @@ var normalize          = require('./util/normalize-query-statement');
 // var log = tap(console.log.bind(console));
 
 class TransactionStream extends Duplex {
-  constructor(session) {
+  constructor(session, options) {
     super({ objectMode: true });
 
     this.session    = session;
@@ -22,7 +22,7 @@ class TransactionStream extends Duplex {
       if(statement.commit) {
         this.commit();
       }
-      return $(new CypherStream(this.tx, statement));
+      return $(new CypherStream(this.tx, statement, options));
     })
     ;
 

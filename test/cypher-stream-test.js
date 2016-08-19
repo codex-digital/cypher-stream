@@ -181,7 +181,7 @@ describe('Cypher stream', () => {
     .resume();
   });
 
-  it('can optionally return Neo4j data types', done => {
+  it('can return Neo4j data types', done => {
     cypher(`match (n:Test) return n limit 1`, {}, { returnType: 'neo4j' })
     .on('data', data => {
       data.should.have.properties([
