@@ -12,7 +12,7 @@ var not     = R.not;
 var unapply = R.unapply;
 var always  = R.always;
 
-var notNil    = compose(not, isNil);
+var notNil  = compose(not, isNil);
 
 // (user, pass) => auth || undefined
 var auth = cond([
@@ -39,6 +39,9 @@ module.exports = function Connection(url, options) {
     return new TransactionStream(session, options)
     .on('end', () => session.close());
   };
+
+  factory.driver = driver;
+  factory.neo4j  = neo4j;
 
   return factory;
 };

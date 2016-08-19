@@ -26,6 +26,10 @@ describe('Cypher stream', () => {
     .resume();
   });
 
+  it('exposes base Neo4j Node and Relationship for external comparisons', () => {
+    cypher.neo4j.types.should.have.properties('Node', 'Relationship');
+  });
+
   it('works', done => {
     var results = 0;
     cypher('match (n:Test) return n limit 10')

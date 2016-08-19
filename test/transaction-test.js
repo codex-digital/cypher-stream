@@ -330,7 +330,7 @@ describe('Transaction', function () {
     });
   });
 
-  it.only('can return Neo4j data types', done => {
+  it('can return Neo4j data types', done => {
     var tx = cypher.transaction({ returnType: 'neo4j' });
 
     tx.on('data', data => {
