@@ -17,9 +17,6 @@ var prop          = R.prop;
 // var tap = R.tap;
 // var log = tap(console.log.bind(console));
 
-// Recursively map Neo4j values
-// to their native equivalants
-
 // session => statement => observable
 var run = curry((runner, statement) =>
   runner.run(statement.statement, statement.parameters)
@@ -48,10 +45,11 @@ var isNeo4jError = R.has('fields');
 
 class CypherStream extends Readable {
 
-  constructor(runner, statements) {
+  constructor(runner, statements, options) {
     super({ objectMode: true });
     this.statements = statements;
-    this.runner    = runner;
+    this.runner     = runner;
+    this.options    = options || {};
     this.start();
   }
 
@@ -60,13 +58,19 @@ class CypherStream extends Readable {
     .flatMap(normalize)
     .filter(has('statement'))
     .flatMap(statement => {
-      var stream =
-      runStream(this.runner, statement)
-      .map(toNative);
+
+      var stream = runStream(this.runner, statement);
+
+      if('neo4j' !== this.options.returnType) {
+        stream = stream.map(toNative);
+      }
+
       if(statement.callback) {
         statement.callback(stream.observe());
       }
+
       return stream;
+
     })
     .errors(handleError(emitError(this)))
     .doto(x => this.push(x))

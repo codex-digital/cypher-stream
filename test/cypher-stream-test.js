@@ -1,7 +1,8 @@
 'use strict';
 var cypher = require('../index')('bolt://0.0.0.0');
-var should = require('should');
+var neo4j  = require('neo4j-driver').v1;
 var R      = require('ramda');
+var should = require('should');
 
 var shouldNotError = error => should.not.exist(error);
 
@@ -179,5 +180,20 @@ describe('Cypher stream', () => {
     })
     .resume();
   });
+
+  it('can optionally return Neo4j data types', done => {
+    cypher(`match (n:Test) return n limit 1`, {}, { returnType: 'neo4j' })
+    .on('data', data => {
+      data.should.have.properties([
+        '_fields',
+        'keys',
+        'length',
+        '_fieldLookup',
+      ]);
+    })
+    .on('end', done)
+    ;
+  });
+
 
 });

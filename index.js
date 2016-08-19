@@ -25,12 +25,12 @@ module.exports = function Connection(url, options) {
 
   var driver  = neo4j.driver(url || 'bolt://localhost', auth(options.username, options.password));
 
-  var factory = function CypherStreamFactory(statement, parameters) {
+  var factory = function CypherStreamFactory(statement, parameters, options) {
     if (parameters) {
       statement = [ { statement, parameters } ];
     }
     var session = driver.session();
-    return new CypherStream(session, statement)
+    return new CypherStream(session, statement, options)
     .on('end', () => session.close());
   };
 
