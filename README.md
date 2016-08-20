@@ -1,6 +1,6 @@
 # cypher-stream
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/codex-digital/cypher-stream?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Build Status](https://travis-ci.org/codex-digital/cypher-stream.svg?branch=master)](https://travis-ci.org/codex-digital/cypher-stream) [![NPM version](https://badge.fury.io/js/cypher-stream.png)](http://badge.fury.io/js/cypher-stream) [![devDependency Status](https://david-dm.org/codex-digital/cypher-stream.png?theme=shields.io)](https://david-dm.org/codex-digital/cypher-stream.png#info=devDependencies) [![Coverage Status](https://coveralls.io/repos/codex-digital/cypher-stream/badge.png?branch=coverage)](https://coveralls.io/r/codex-digital/cypher-stream)
+[![Build Status](https://travis-ci.org/codex-digital/cypher-stream.svg?branch=master)](https://travis-ci.org/codex-digital/cypher-stream) [![NPM version](https://badge.fury.io/js/cypher-stream.png)](http://badge.fury.io/js/cypher-stream) [![devDependency Status](https://david-dm.org/codex-digital/cypher-stream.png?theme=shields.io)](https://david-dm.org/codex-digital/cypher-stream.png#info=devDependencies) [![Coverage Status](https://coveralls.io/repos/github/codex-digital/cypher-stream/badge.svg?branch=master)](https://coveralls.io/github/codex-digital/cypher-stream?branch=master)
 
 Neo4j cypher queries as node object streams.
 
