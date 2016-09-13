@@ -10,7 +10,7 @@ describe('Cypher stream', () => {
 
   var testRecordsToCreate = 10;
   before(function(done) {
-    // Travis CI is slow.  Give him more time.
+    // Travis CI is slow.  Give more time.
     if (process.env.TRAVIS_CI) {
       this.timeout(5000);
     }
@@ -64,7 +64,7 @@ describe('Cypher stream', () => {
       should.equal(true, errored);
       done();
     })
-    .resume() // need to manually start it since we have no on('data')
+    .resume()
     ;
   });
 

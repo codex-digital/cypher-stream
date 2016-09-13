@@ -1,35 +1,15 @@
 # cypher-stream
-[![Build Status](https://travis-ci.org/codex-digital/cypher-stream.svg?branch=master)](https://travis-ci.org/codex-digital/cypher-stream) 
-[![devDependency Status](https://david-dm.org/codex-digital/cypher-stream.png?theme=shields.io)](https://david-dm.org/codex-digital/cypher-stream.png#info=devDependencies) 
-[![NPM version](https://badge.fury.io/js/cypher-stream.png)](http://badge.fury.io/js/cypher-stream) 
+[![Build Status](https://travis-ci.org/codex-digital/cypher-stream.svg?branch=master)](https://travis-ci.org/codex-digital/cypher-stream)
+[![devDependency Status](https://david-dm.org/codex-digital/cypher-stream.png?theme=shields.io)](https://david-dm.org/codex-digital/cypher-stream.png#info=devDependencies)
+[![NPM version](https://badge.fury.io/js/cypher-stream.png)](http://badge.fury.io/js/cypher-stream)
 [![Coverage Status](https://coveralls.io/repos/github/codex-digital/cypher-stream/badge.svg?branch=master)](https://coveralls.io/github/codex-digital/cypher-stream?branch=master)
 [![Slack Status](https://codex-community-slackin.herokuapp.com/badge.svg)](https://codex-community-slackin.herokuapp.com)
 
 Neo4j cypher queries as node object streams.
 
-## 1.0.0-alpha
-
-1.0.0-alpha is Powered by Bolt™. Updated documentation is forthcoming.  For the brave, check the source, tests, and go wild.
-
-The API is largely unchanged, with the exception of authentication and some configuration options which no longer make sense in the Bolt world (i.e. http headers).
-
-Performance should be significantly improved, given that the library no longer has to stream-parse HTTP JSON responses.
-
-TODO:
-
-  * Documentation / Migration guide
-  * Facilitate access to underlying Neo4j objects
-  * Benchmark
-
 ## Installation
 ```
 npm install cypher-stream
-```
-
-Or, for Bolt
-
-```
-npm install cypher-stream@1.0.0-alpha
 ```
 
 ## Basic usage
@@ -53,20 +33,24 @@ var cypher = require('cypher-stream')('bolt://localhost', 'username', 'password'
 var should = require('should');
 it('handles errors', function (done) {
   var errored = false;
-  cypher('invalid query')
-    .on('error', function (error) {
+    cypher('invalid query')
+    .on('error', error => {
       errored = true;
-      String(error).should.equal('Error: Query failure: Invalid input \'i\': expected SingleStatement (line 1, column 1)\n"invalid query"\n ^');
-      error.neo4j.exception.should.equal('SyntaxException');
-      error.neo4j.stacktrace.should.be.an.array;
-      error.neo4j.statusCode.should.equal(400);
+      should.equal(
+        error.code,
+        'Neo.ClientError.Statement.SyntaxError'
+      );
+      should.equal(
+        error.message,
+        'Invalid input \'i\': expected <init> (line 1, column 1 (offset: 0))\n"invalid query"\n ^'
+      );
     })
-    .on('end', function() {
-      errored.should.be.true;
+    .on('end', () => {
+      should.equal(true, errored);
       done();
     })
-    .resume() // need to manually start it since we have no on('data')
-  ;
+    .resume()
+    ;
 });
 
 ```
@@ -74,7 +58,7 @@ it('handles errors', function (done) {
 ## Transactions
 
 
-Transactions are duplex streams that allow you to write query statements then commit or roll back the written queries.
+Transactions are duplex streams that allow you to write query statements and read the results.
 
 Transactions have three methods: `write`, `commit`, and `rollback`, which add queries and commit or rollback the queue respectively.
 
@@ -90,18 +74,22 @@ var transaction = cypher.transaction(options)
 transaction.write(query_statement);
 ```
 
-A `query_statement` can either be a string or a query statement object.  A query statement object consists of a `statement` property and an optional `parameters` property.  Additionally, you can pass an array of either.
+A `query_statement` can be a string or a query statement object.  A query statement object consists of a `statement` property and an optional `parameters` property.  Additionally, you can pass an array of either.
 
 The following are all valid options:
 
 ``` js
 var transaction = cypher.transaction();
+
 transaction.write('match (n:User) return n');
+
 transaction.write({ statement: 'match (n:User) return n' });
+
 transaction.write({
   statement  : 'match (n:User) where n.first_name = {first_name} return n',
   parameters : { first_name: "Bob" }
 });
+
 transaction.write([
   {
     statement  : 'match (n:User) where n.first_name = {first_name} return n',
@@ -118,10 +106,11 @@ transaction.commit();
 transaction.rollback();
 ```
 
-Alternatively, a query statement may also contain a `commit` or `rollback` property instead of calling `commit()` or `rollback()` directly.
+Alternatively, a query statement may contain a `commit` or `rollback` property.
 
 ``` js
 transaction.write({ statement: 'match (n:User) return n', commit: true });
+
 transaction.write({
   statement  : 'match (n:User) where n.first_name = {first_name} return n',
   parameters : { first_name: "Bob" },
@@ -139,6 +128,7 @@ var results = 0;
 var calls   = 0;
 var ended   = 0;
 var query   = 'match (n:Test) return n limit 2';
+
 function callback(stream) {
   stream
     .on('data', function (result) {
@@ -151,13 +141,17 @@ function callback(stream) {
   ;
   calls++;
 }
+
 var statement = { statement: query, callback: callback };
-cypher([ statement, statement ]).on('end', function () {
+
+cypher([ statement, statement ])
+.on('end', function () {
   calls.should.equal(2);
   ended.should.equal(2);
   results.should.equal(4);
   done();
-}).resume();
+})
+.resume();
 ```
 
 ``` js
@@ -165,6 +159,7 @@ var results = 0;
 var calls   = 0;
 var ended   = 0;
 var query   = 'match (n:Test) return n limit 2';
+
 function callback(stream) {
   stream
     .on('data', function (result) {
@@ -177,12 +172,18 @@ function callback(stream) {
   ;
   calls++;
 }
+
 var statement = { statement: query, callback: callback };
 var transaction = cypher.transaction();
+
 transaction.write(statement);
+
 transaction.write(statement);
+
 transaction.commit();
+
 transaction.resume();
+
 transaction.on('end', function() {
   calls.should.equal(2);
   ended.should.equal(2);
