@@ -1,4 +1,3 @@
-'use strict';
 var CypherStream      = require('./CypherStream');
 var neo4j             = require('neo4j-driver').v1;
 var R                 = require('ramda');
@@ -14,16 +13,17 @@ var always  = R.always;
 
 var notNil  = compose(not, isNil);
 
-// (user, pass) => auth || undefined
+/**
+ * user -> pass -> auth | undefined
+ */
 var auth = cond([
   [unapply(all(notNil)), neo4j.auth.basic ],
   [R.T,                  always(undefined)],
 ]);
 
-module.exports = function Connection(url, options) {
-  options = options || {};
+module.exports = function Connection(url, username, password) {
 
-  var driver  = neo4j.driver(url || 'bolt://localhost', auth(options.username, options.password));
+  var driver  = neo4j.driver(url || 'bolt://localhost', auth(username, password));
 
   var factory = function CypherStreamFactory(statement, parameters, options) {
     if (parameters) {

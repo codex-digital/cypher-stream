@@ -23,6 +23,7 @@
   "maxlen"        : 120,      // {int} Max number of characters per line
 
   "node"          : true,     // Node.js
+  "esversion"     : 6,
   "globals"   : {
     /* MOCHA */
     "context"    : false,
