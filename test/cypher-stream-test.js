@@ -199,5 +199,13 @@ describe('Cypher stream', () => {
     ;
   });
 
-
+  it('converts properties of Nodes to native', done => {
+    cypher('create (n { foo: 1 }) return n ')
+    .on('data', result => result.should.eql({
+      n: { foo: 1 }
+    }))
+    .on('error', shouldNotError)
+    .on('end', done)
+    ;
+  });
 });

@@ -24,7 +24,7 @@ var isRecord       = both(has('_fields'), has('keys'));
 // to their native equivalants
 var toNative = cond([
   [isNil,                        identity],
-  [is(neo4j.types.Node),         prop('properties')],
+  [is(neo4j.types.Node),         x => compose(toNative, prop('properties'))(x)],
   [is(neo4j.types.Relationship), prop('properties')],
   [neo4j.isInt,                  invoker(0, 'toInt')],
   [isArrayLike,                  x => map(toNative, x)],
