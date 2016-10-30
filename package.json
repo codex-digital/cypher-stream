@@ -22,7 +22,7 @@
     "url": "https://github.com/brian-gates/cypher-stream/issues"
   },
   "dependencies": {
-    "highland": "^2.9.0",
+    "highland": "^2.10.1",
     "neo4j-driver": "^1.0.3",
     "ramda": "^0.22.1"
   },
