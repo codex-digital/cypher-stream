@@ -34,8 +34,8 @@ describe('Cypher stream', () => {
 
     it('returns integer for max safe', done =>
       cypher(`return ${Number.MAX_SAFE_INTEGER} as number`)
-      .on('data', ({ number }) => {
-        number.should.eql(Number.MAX_SAFE_INTEGER);
+      .on('data', result => {
+        result.number.should.eql(Number.MAX_SAFE_INTEGER);
       })
       .on('error', shouldNotError)
       .on('end', done)
@@ -43,9 +43,9 @@ describe('Cypher stream', () => {
 
     it('returns integer for min safe', done =>
       cypher(`return ${Number.MIN_SAFE_INTEGER} as number`)
-      .on('data', ({ number }) => {
-        number.should.be.a.Number();
-        number.should.eql(Number.MIN_SAFE_INTEGER);
+      .on('data', result => {
+        result.number.should.be.a.Number();
+        result.number.should.eql(Number.MIN_SAFE_INTEGER);
       })
       .on('error', shouldNotError)
       .on('end', done)
@@ -53,9 +53,9 @@ describe('Cypher stream', () => {
 
     it('returns strings for > max safe', done =>
       cypher(`return ${Number.MAX_SAFE_INTEGER+1} as number`)
-      .on('data', ({ number }) => {
-        number.should.be.a.String();
-        number.should.eql(String(Number.MAX_SAFE_INTEGER+1))
+      .on('data', result => {
+        result.number.should.be.a.String();
+        result.number.should.eql(String(Number.MAX_SAFE_INTEGER+1))
       })
       .on('error', shouldNotError)
       .on('end', done)
@@ -63,9 +63,9 @@ describe('Cypher stream', () => {
 
     it('returns strings for < min safe', done =>
       cypher(`return ${Number.MIN_SAFE_INTEGER-1} as number`)
-      .on('data', ({ number }) => {
-        number.should.be.a.String();
-        number.should.eql(String(Number.MIN_SAFE_INTEGER-1))
+      .on('data', result => {
+        result.number.should.be.a.String();
+        result.number.should.eql(String(Number.MIN_SAFE_INTEGER-1))
       })
       .on('error', shouldNotError)
       .on('end', done)
