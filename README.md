@@ -191,3 +191,11 @@ transaction.on('end', function() {
   done();
 });
 ```
+
+## Unsafe Integers
+
+Unsafe integers* are returned as strings.  If your system deals with particularly large or small numbers, this will require special handling.
+
+See "[A note on numbers and the Integer type](https://github.com/neo4j/neo4j-javascript-driver/#a-note-on-numbers-and-the-integer-type)" on the neo4j-javascript-driver README for more information.
+
+\* Unsafe integers are any integers greater than Number.MAX_SAFE_INTEGER or less than Number.MIN_SAFE_INTEGER.
