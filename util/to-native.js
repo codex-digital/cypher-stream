@@ -26,7 +26,7 @@ var toNative = cond([
   [isNil,                        identity],
   [is(neo4j.types.Node),         x => compose(toNative, prop('properties'))(x)],
   [is(neo4j.types.Relationship), prop('properties')],
-  [neo4j.isInt,                  invoker(0, 'toInt')],
+  [neo4j.isInt,                  x => x.inSafeRange() ? x.toNumber() : x.toString()],
   [isArrayLike,                  x => map(toNative, x)],
   [isRecord,                     x => compose(toNative, recordToNative)(x)],
   [is(Object),                   x => mapObjIndexed(toNative, x)],

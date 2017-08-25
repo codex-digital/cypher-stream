@@ -30,6 +30,50 @@ describe('Cypher stream', () => {
     cypher.neo4j.types.should.have.properties('Node', 'Relationship');
   });
 
+  describe('numbers', () => {
+
+    it('returns integer for max safe', done =>
+      cypher(`return ${Number.MAX_SAFE_INTEGER} as number`)
+      .on('data', result => {
+        result.number.should.eql(Number.MAX_SAFE_INTEGER);
+      })
+      .on('error', shouldNotError)
+      .on('end', done)
+    );
+
+    it('returns integer for min safe', done =>
+      cypher(`return ${Number.MIN_SAFE_INTEGER} as number`)
+      .on('data', result => {
+        result.number.should.be.a.Number();
+        result.number.should.eql(Number.MIN_SAFE_INTEGER);
+      })
+      .on('error', shouldNotError)
+      .on('end', done)
+    );
+
+    it('returns strings for > max safe', done =>
+      cypher(`return ${Number.MAX_SAFE_INTEGER+1} as number`)
+      .on('data', result => {
+        result.number.should.be.a.String();
+        result.number.should.eql(String(Number.MAX_SAFE_INTEGER+1))
+      })
+      .on('error', shouldNotError)
+      .on('end', done)
+    );
+
+    it('returns strings for < min safe', done =>
+      cypher(`return ${Number.MIN_SAFE_INTEGER-1} as number`)
+      .on('data', result => {
+        result.number.should.be.a.String();
+        result.number.should.eql(String(Number.MIN_SAFE_INTEGER-1))
+      })
+      .on('error', shouldNotError)
+      .on('end', done)
+    );
+
+  });
+
+
   it('works', done => {
     var results = 0;
     cypher('match (n:Test) return n limit 10')
