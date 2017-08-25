@@ -20,8 +20,6 @@ var zipObj        = R.zipObj;
 var recordToNative = converge(zipObj, [prop('keys'), prop('_fields')]);
 var isRecord       = both(has('_fields'), has('keys'));
 
-var log = console.log.bind(console);
-
 // Recursively map Neo4j values
 // to their native equivalants
 var toNative = cond([
