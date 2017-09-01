@@ -26,8 +26,16 @@ describe('Cypher stream', () => {
     .resume();
   });
 
+
+
   it('exposes base Neo4j Node and Relationship for external comparisons', () => {
     cypher.neo4j.types.should.have.properties('Node', 'Relationship');
+  });
+
+  it('exposes to-native', () => {
+    // this function could be useful for client wrappers wanting to implement
+    // mapping middleware of their own, but delegate back to native in certain cases
+    cypher.toNative.should.be.a.Function();
   });
 
   describe('numbers', () => {
