@@ -1,4 +1,5 @@
 var CypherStream      = require('./CypherStream');
+var toNative          = require('./util/to-native')
 var neo4j             = require('neo4j-driver').v1;
 var R                 = require('ramda');
 var TransactionStream = require('./TransactionStream');
@@ -42,6 +43,7 @@ module.exports = function Connection(url, username, password) {
 
   factory.driver = driver;
   factory.neo4j  = neo4j;
+  factory.toNative = toNative;
 
   return factory;
 };
